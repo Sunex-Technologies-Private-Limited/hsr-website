@@ -102,7 +102,7 @@ async function startServer() {
   app.get("/api/downloads/:slug", async (req, res) => {
     try {
       // Mock authorization
-      const user = { id: 1 };
+      const user = { id: 1, email: "test@example.com", role: "user" };
       if (!user) return res.status(401).json({ error: "Unauthorized" });
       
       const slug = req.params.slug;

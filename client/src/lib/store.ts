@@ -1,4 +1,5 @@
 export type Product = {
+  id?: number;
   slug: string;
   name: string;
   category: string;
@@ -9,10 +10,14 @@ export type Product = {
   badge?: string | null;
   accent: string;
   image?: string | null;
+  imagePath?: string | null;
   coverLabel: string;
   format: string;
-  included: string[];
+  included: string[] | string;
   forWho: string;
+  active?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 };
 
 export const products: Product[] = [
