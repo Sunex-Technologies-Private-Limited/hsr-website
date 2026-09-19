@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { createContext, useContext, useMemo, useState, useEffect } from "react";
-import { ArrowUpRight, Calendar, Check, ChevronDown, Download, Heart, LogIn, Menu, Minus, Package, Plus, Search, ShoppingBag, Sparkles, Wrench, X } from "lucide-react";
+import { ArrowUpRight, Calendar, Check, ChevronDown, Download, Heart, LogIn, Menu, Minus, Package, Plus, Search, ShoppingBag, Sparkles, Wrench, X, Facebook, Instagram } from "lucide-react";
 import { toast } from "sonner";
 import { Product, formatPrice, getCoverClass, getProductCoverStyle } from "@/lib/store";
 import { trpc } from "@/lib/trpc";
@@ -176,7 +176,7 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="container footer-top">
-        <div className="footer-brand"><BrandMark inverse /><p>Practical digital solutions for learning, productivity, career, business and everyday life.</p><div className="footer-socials"><a href="#facebook" aria-label="Facebook">fb</a><a href="#instagram" aria-label="Instagram">ig</a><a href="#youtube" aria-label="YouTube">yt</a><a href="#linkedin" aria-label="LinkedIn">in</a><a href="#x" aria-label="X">x</a></div></div>
+        <div className="footer-brand"><BrandMark inverse /><p>Practical digital solutions for learning, productivity, career, business and everyday life.</p><div className="footer-socials"><a href="https://www.facebook.com/profile.php?id=61590198495302" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><Facebook size={14} /></a><a href="https://www.instagram.com/hsrdigitalhub/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><Instagram size={14} /></a></div></div>
         <div className="footer-column"><h3>SHOP</h3><Link href="/shop">All Products</Link><Link href="/best-sellers">Best Sellers</Link><Link href="/new-arrivals">New Arrivals</Link><Link href="/bundles">Bundles</Link><Link href="/free-resources">Free Resources</Link></div>
         <div className="footer-column"><h3>CATEGORIES</h3><Link href="/shop?category=Education%20%26%20Learning">Education</Link><Link href="/shop?category=AI%20%26%20Technology">AI & Technology</Link><Link href="/shop?category=Business">Business</Link><Link href="/shop?category=Productivity">Productivity</Link><Link href="/shop?category=Career%20%26%20Jobs">Career</Link><Link href="/shop?category=Lifestyle">Lifestyle</Link></div>
         <div className="footer-column"><h3>COMPANY</h3><Link href="/about">About Us</Link><Link href="/blog">Blog</Link><Link href="/contact">Contact</Link><Link href="/faq">FAQ</Link><Link href="/support">Support</Link></div>
