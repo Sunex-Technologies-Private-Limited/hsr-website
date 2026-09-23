@@ -82,7 +82,8 @@ small { font-size: 15px; opacity: 0.8; }
 .site-header.scrolled { box-shadow: 0 4px 20px rgba(23,41,73,.05); }
 .header-inner { height: 86px; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
 .brand-mark { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); }
-.brand-mark-symbol { width: 30px; height: 30px; display: grid; place-items: center; color: var(--paper); background: var(--cobalt); border-radius: 50% 50% 50% 3px; font-family: "Fraunces", Georgia, serif; font-size: 22px; line-height: 1; }
+.brand-mark-image-container { width: 50px; height: 35px; overflow: hidden; display: flex; justify-content: center; }
+.brand-mark-symbol { width: 50px; height: 50px; display: block; object-fit: cover; object-position: top; }
 .brand-mark-word { display: flex; flex-direction: column; font-size: 19px; font-weight: 800; line-height: .82; letter-spacing: -.05em; }
 .brand-mark-word span { margin-top: 5px; color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
 .brand-mark-inverse { color: var(--white); }

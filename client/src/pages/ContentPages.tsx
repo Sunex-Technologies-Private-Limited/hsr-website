@@ -82,9 +82,10 @@ export function TermsAndConditions() {
 
 export function RefundPolicy() {
   const sections = [
-    { title: "Digital Product Refunds", content: <p>Due to the nature of digital products, all sales are considered final once the files have been downloaded. We do not offer refunds on digital downloads.</p> },
-    { title: "Exceptions", content: <p>If you encounter technical issues with a file, or if you accidentally purchased the same product twice, please contact our support team within 7 days of purchase. We will review your request and may issue a refund or store credit at our discretion.</p> },
-    { title: "Contact Us", content: <p>If you have any questions about our refund policy, please visit our <Link href="/support" className="text-link">Support page</Link>.</p> },
+    { title: "Digital Products", content: <><p>All sales of digital products offered by <strong>HSR Digital Hub</strong> are final. Due to the nature of digital products, we generally do not offer refunds, returns, or exchanges once a product has been purchased, downloaded, accessed, activated, or delivered.</p><p style={{ marginTop: '10px' }}>Before completing a purchase, customers are responsible for reviewing the product description, features, specifications, system requirements, compatibility requirements, licensing terms, and any other information provided on the relevant product page.</p></> },
+    { title: "Technical Issues or Incorrect Products", content: <><p>If you experience a technical issue that prevents the purchased product from functioning as described, or if you believe you have received an incorrect or defective product, please contact us at <strong><a href="mailto:hsrdigitalhub@gmail.com" className="text-link">hsrdigitalhub@gmail.com</a></strong> with your order details and a description of the issue.</p><p style={{ marginTop: '10px' }}>We will review the matter and, where appropriate, may provide technical assistance, a replacement product, a corrected version, access to the purchased product, or another appropriate remedy at our discretion.</p></> },
+    { title: "Customer Responsibility", content: <><p>Customers are encouraged to carefully review all available product information before purchasing. This includes product features, requirements, compatibility, licensing restrictions, supported platforms, and other relevant details.</p><p style={{ marginTop: '10px' }}>Refunds will generally not be provided due to a change of mind, failure to use the product, accidental purchase, failure to review the product information before purchase, or incompatibility where the applicable requirements were clearly disclosed before purchase.</p></> },
+    { title: "Contact Us", content: <><p>For questions or concerns regarding a purchase, please contact:</p><p style={{ marginTop: '10px' }}><strong>Email:</strong> <a href="mailto:hsrdigitalhub@gmail.com" className="text-link">hsrdigitalhub@gmail.com</a></p><p style={{ marginTop: '10px' }}>This Refund Policy does not limit or exclude any rights, remedies, or protections that cannot legally be excluded or waived under applicable law.</p></> },
   ];
   return <LegalAccordionPage eyebrow="LEGAL" title={<>Refund<br /><em>Policy.</em></>} sections={sections} />;
 }
@@ -108,10 +109,9 @@ export function FAQ() {
     { q: "What formats do the digital products come in?", a: "Our products come in various formats like PDF, Notion templates, spreadsheets, and more. Check the specific product page for details." },
     { q: "Do I need any special software to use your products?", a: "Most products can be used with free software (like a PDF reader or Notion). Specific requirements are listed on the product page." },
     { q: "Can I use your templates for my business?", a: "Products with a 'Commercial Use' license can be used in your business operations. However, you cannot resell the template itself." },
-    { q: "What if I accidentally delete my downloaded file?", a: "You can re-download your purchases at any time by logging into your HSR Digital Hub account." },
     { q: "Do you offer refunds?", a: "Due to the nature of digital downloads, sales are final once files are downloaded. Please see our Refund Policy for exceptions." },
     { q: "Can I share the digital file with my friends?", a: "No. Your purchase grants you a personal license. Please direct friends to our website to purchase their own copy." },
-    { q: "What payment methods do you accept?", a: "We accept all major credit cards and secure digital payment methods." },
+    { q: "What payment methods do you accept?", a: "We accept all major credit and debit cards, and secure digital payment methods like UPI." },
   ];
 
   return (

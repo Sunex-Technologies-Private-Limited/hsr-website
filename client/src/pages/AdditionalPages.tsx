@@ -19,84 +19,133 @@ export function Deals() {
 }
 
 export function About() {
+  const { data: products = [] } = trpc.catalog.list.useQuery();
+  const [activeTab, setActiveTab] = useState(0);
+
+  const values = [
+    { title: "Innovation", desc: "Finding new and better ways to solve everyday challenges. We constantly explore fresh ideas to make our digital tools more effective and intuitive.", icon: Sparkles, accent: "var(--cobalt)", text: "white" },
+    { title: "Quality", desc: "Delivering excellence in every digital product we create. We obsess over the details so you get the best experience possible.", icon: CheckSquare, accent: "var(--cream)", text: "var(--navy)" },
+    { title: "Trust", desc: "Building transparent and reliable relationships with our users. We believe in honest pricing, clear communication, and delivering on our promises.", icon: ShieldCheck, accent: "var(--navy)", text: "white" },
+    { title: "Continuous Learning", desc: "Always evolving and improving our skills and offerings. We grow alongside our users to ensure our products stay relevant.", icon: BookOpen, accent: "var(--sky)", text: "var(--navy)" },
+    { title: "Customer Success", desc: "Your progress and satisfaction are our primary goals. We measure our success by how much time and effort we save you.", icon: Smile, accent: "var(--cobalt)", text: "white" },
+    { title: "Accessibility", desc: "Making premium digital tools affordable and easy to use. Great design and practical utility shouldn't come with a luxury price tag.", icon: Compass, accent: "var(--cream)", text: "var(--navy)" }
+  ];
+
   return (
     <main className="about-page">
       <section className="about-hero">
         <div className="container about-hero-inner">
-          <span className="eyebrow eyebrow-light">ABOUT HSR DIGITAL HUB / 01</span>
-          <h1>Useful things<br /><em>for real life.</em></h1>
-          <p>Our philosophy is simple: Digital products should solve problems, not create them. HSR Digital Hub creates practical, affordable and high-quality digital products designed to help you learn, work, plan and achieve more.</p>
+          <span className="eyebrow eyebrow-light">OUR STORY</span>
+          <h1>Simplifying life<br /><em>through technology.</em></h1>
+          <p>HSR Digital Hub is built on more than three decades of hands-on experience in the digital world—as a user, developer, contributor, and problem solver. Over the years, we have explored countless digital tools, created practical solutions, solved real-world challenges, and gained valuable insights into what truly helps people learn, work, and grow more efficiently.</p>
+          <p style={{ marginTop: '20px' }}>HSR Digital Hub creates high-quality digital products accessible to everyone at affordable prices. We believe that technology should simplify life—not complicate it.</p>
         </div>
       </section>
 
       <section className="section about-story">
         <div className="container about-story-grid">
           <div><span className="eyebrow">OUR VISION</span><h2>To become the most trusted<br /><em>destination.</em></h2></div>
-          <div><p>To become the most trusted and useful destination for practical digital resources that help people simplify their work and life.</p></div>
+          <div><p>To become one of India's most trusted digital product platforms by delivering practical, high-quality, and affordable solutions.</p></div>
         </div>
       </section>
 
-      <section className="section about-story">
+      <section className="section about-story" style={{ borderTop: '1px solid var(--line)' }}>
         <div className="container about-story-grid">
           <div><span className="eyebrow">OUR MISSION</span><h2>Solve problems,<br /><em>save time.</em></h2></div>
-          <div><p>To create digital products that solve real problems, save time, and deliver immediate value—without unnecessary complexity or high costs.</p></div>
+          <div><p>To develop innovative digital products that simplify learning, planning, business, and everyday life.</p></div>
         </div>
       </section>
 
-      <section className="about-values-bands">
+      <section className="section" style={{ padding: '120px 0', background: 'var(--white)' }}>
         <div className="container">
-          <div className="about-values-header" style={{ marginBottom: '60px' }}>
-            <span className="eyebrow eyebrow-dark">OUR VALUES</span>
+          <div style={{ textAlign: 'center', maxWidth: '700px', margin: '0 auto 80px' }}>
+            <span className="eyebrow eyebrow-dark">CORE VALUES</span>
+            <h2 style={{ fontSize: 'clamp(40px, 5vw, 56px)', fontFamily: '"Fraunces", Georgia, serif', color: 'var(--navy)', marginTop: '20px', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+              What drives us forward.
+            </h2>
+            <p style={{ marginTop: '24px', fontSize: '18px', color: 'var(--muted)', lineHeight: 1.6 }}>
+              The principles that guide everything we create, designed to deliver real value to your everyday life and work.
+            </p>
           </div>
           
-          <div className="values-bands-container">
-            
-            <div className="value-band">
-              <div className="band-bg band-navy"></div>
-              <div className="band-content band-navy-content">
-                <span className="band-num">01</span>
-                <h2 className="band-title">Practicality <br /><em>over theory.</em></h2>
-                <div className="band-desc-wrapper">
-                  <p className="band-desc">Products you can actually use to solve real problems. No fluff, just tools that work.</p>
-                  <ArrowRight size={32} className="band-arrow" strokeWidth={1.5} />
-                </div>
-              </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'stretch' }}>
+            {/* Left: Interactive Tabs */}
+            <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {values.map((v, i) => {
+                const isActive = activeTab === i;
+                return (
+                  <button 
+                    key={i}
+                    onClick={() => setActiveTab(i)}
+                    style={{ 
+                      textAlign: 'left', 
+                      padding: '24px 32px', 
+                      borderRadius: '16px', 
+                      background: isActive ? 'var(--navy)' : 'transparent',
+                      color: isActive ? 'white' : 'var(--navy)',
+                      border: isActive ? 'none' : '1px solid var(--line)',
+                      fontSize: '20px',
+                      fontFamily: '"Fraunces", Georgia, serif',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s var(--ease)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      boxShadow: isActive ? '0 10px 30px rgba(13,33,66,0.1)' : 'none'
+                    }}
+                  >
+                    <span>
+                      <span style={{ fontSize: '14px', letterSpacing: '0.15em', marginRight: '16px', opacity: isActive ? 0.7 : 0.4 }}>0{i + 1}</span>
+                      {v.title}
+                    </span>
+                    {isActive && <ArrowRight size={20} style={{ color: 'var(--sky)' }} />}
+                  </button>
+                );
+              })}
             </div>
             
-            <div className="value-band">
-              <div className="band-bg band-paper"></div>
-              <div className="band-content band-paper-content">
-                <span className="band-num">02</span>
-                <h2 className="band-title">Quality <br /><em>over quantity.</em></h2>
-                <div className="band-desc-wrapper">
-                  <p className="band-desc">Carefully crafted resources. We obsess over the details so you get the best experience.</p>
-                  <ArrowRight size={32} className="band-arrow" strokeWidth={1.5} />
-                </div>
-              </div>
+            {/* Right: Active Content Panel */}
+            <div style={{ 
+               flex: '2 1 400px',
+               background: values[activeTab].accent, 
+               color: values[activeTab].text,
+               padding: '60px',
+               borderRadius: '32px',
+               position: 'relative',
+               overflow: 'hidden',
+               minHeight: '400px',
+               display: 'flex',
+               flexDirection: 'column',
+               justifyContent: 'center',
+               boxShadow: '0 20px 40px rgba(13,33,66,0.08)'
+            }}>
+               <div className="cover-pattern" style={{ opacity: 0.3 }} />
+               
+               <div style={{ position: 'relative', zIndex: 1 }}>
+                 {React.createElement(values[activeTab].icon, { size: 64, strokeWidth: 1.5, style: { marginBottom: '32px' } })}
+                 <h3 style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontFamily: '"Fraunces", Georgia, serif', marginBottom: '24px', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+                   {values[activeTab].title}
+                 </h3>
+                 <p style={{ fontSize: '20px', lineHeight: 1.6, opacity: 0.9, maxWidth: '90%' }}>
+                   {values[activeTab].desc}
+                 </p>
+               </div>
             </div>
-            
-            <div className="value-band">
-              <div className="band-bg band-cobalt"></div>
-              <div className="band-content band-cobalt-content">
-                <span className="band-num">03</span>
-                <h2 className="band-title">Affordability <br /><em>without compromise.</em></h2>
-                <div className="band-desc-wrapper">
-                  <p className="band-desc">Premium quality digital tools at a price that makes sense for everyone.</p>
-                  <ArrowRight size={32} className="band-arrow" strokeWidth={1.5} />
-                </div>
-              </div>
-            </div>
-            
           </div>
         </div>
       </section>
 
-      <section className="section about-bottom">
+      <section className="section" style={{ padding: '100px 0' }}>
         <div className="container">
-          <span className="eyebrow">WHY WE EXIST</span>
-          <h2>30+ Years of<br /><em>Experience.</em></h2>
-          <p style={{ maxWidth: '600px', margin: '20px auto', fontSize: '18px', color: 'var(--ink-light)', lineHeight: 1.6 }}>We believe that learning, planning, and organizing shouldn't be expensive or complicated. With 30+ years of digital experience, we created HSR Digital Hub to offer high-quality digital solutions that you can actually use.</p>
-          <Link href="/shop" className="button button-primary">Explore our products <ArrowUpRight size={17} /></Link>
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <span className="eyebrow">OUR PRODUCTS</span>
+            <h2 style={{ fontSize: '48px', fontFamily: '"Fraunces", Georgia, serif', color: 'var(--navy)', marginTop: '16px' }}>Explore what we've built.</h2>
+          </div>
+          <div className="product-grid product-grid-four">
+            {products.map((product) => (
+              <ProductCard key={product.slug} product={product as any} compact />
+            ))}
+          </div>
         </div>
       </section>
     </main>
@@ -247,7 +296,7 @@ export function Account() {
 }
 
 export function Contact() {
-  return <main className="contact-page"><section className="container contact-hero"><span className="eyebrow">WE’RE HERE TO HELP</span><h1>Let’s make<br /><em>things clearer.</em></h1><p>Questions about a product, digital access or finding the right next step? Send us a note.</p></section><section className="container contact-grid"><div className="contact-info"><div><Mail size={18} /><span><b>Email</b>hello@hsrdigitalhub.com</span></div><div><Phone size={18} /><span><b>Support</b>Product and access help</span></div><div><MapPin size={18} /><span><b>Online</b>Digital-first, wherever you are</span></div><div><AtSign size={18} /><span><b>Socials</b><span><a href="https://www.instagram.com/hsrdigitalhub/" target="_blank" rel="noopener noreferrer">Instagram</a> &middot; <a href="https://www.facebook.com/profile.php?id=61590198495302" target="_blank" rel="noopener noreferrer">Facebook</a></span></span></div></div><form className="contact-form" onSubmit={(event) => event.preventDefault()}><label>Name<input required placeholder="Your name" /></label><label>Email<input required type="email" placeholder="you@example.com" /></label><label>Order Number (optional)<input placeholder="e.g. #12345" /></label><label>Subject<input required placeholder="What is this regarding?" /></label><label>How can we help?<textarea required rows={5} placeholder="Tell us what you’re working on…" /></label><button className="button button-primary" type="submit">Send message <ArrowUpRight size={17} /></button></form></section></main>;
+  return <main className="contact-page"><section className="container contact-hero"><span className="eyebrow">WE’RE HERE TO HELP</span><h1>Let’s make<br /><em>things clearer.</em></h1><p>Questions about a product, digital access or finding the right next step? Send us a note.</p></section><section className="container contact-grid"><div className="contact-info"><div><Mail size={18} /><span><b>Email</b>hsrdigitalhub@gmail.com</span></div><div><Phone size={18} /><span><b>Support</b>Product and access help</span></div><div><MapPin size={18} /><span><b>Online</b>Digital-first, wherever you are</span></div><div><AtSign size={18} /><span><b>Socials</b><span><a href="https://www.instagram.com/hsrdigitalhub/" target="_blank" rel="noopener noreferrer">Instagram</a> &middot; <a href="https://www.facebook.com/profile.php?id=61590198495302" target="_blank" rel="noopener noreferrer">Facebook</a></span></span></div></div><form className="contact-form" onSubmit={(event) => event.preventDefault()}><label>Name<input required placeholder="Your name" /></label><label>Email<input required type="email" placeholder="you@example.com" /></label><label>Order Number (optional)<input placeholder="e.g. #12345" /></label><label>Subject<input required placeholder="What is this regarding?" /></label><label>How can we help?<textarea required rows={5} placeholder="Tell us what you’re working on…" /></label><button className="button button-primary" type="submit">Send message <ArrowUpRight size={17} /></button></form></section></main>;
 }
 
 export function CollectionPage({ eyebrow, title, intro, products: collection }: { eyebrow: string; title: React.ReactNode; intro: string; products: any[] }) {
@@ -278,17 +327,9 @@ export function Categories() {
 
   const categoryDetails: Record<string, { icon: React.ReactNode; desc: string }> = {
     "Education & Learning": { icon: <BookOpen size={32} strokeWidth={1.5} />, desc: "Level up your skills with study planners and learning systems." },
-    "AI & Technology": { icon: <Cpu size={32} strokeWidth={1.5} />, desc: "Work smarter with ready-to-use AI prompts and tech workflows." },
-    "Business": { icon: <Briefcase size={32} strokeWidth={1.5} />, desc: "Templates and kits to run the important parts of your business." },
-    "Productivity": { icon: <Zap size={32} strokeWidth={1.5} />, desc: "Calm, repeatable systems for planning and protecting your focus." },
-    "Career & Jobs": { icon: <Compass size={32} strokeWidth={1.5} />, desc: "Command centers and tools to track your professional growth." },
-    "Personal Development": { icon: <Smile size={32} strokeWidth={1.5} />, desc: "Resources to reflect, grow, and build better habits." },
-    "Home Planning": { icon: <Home size={32} strokeWidth={1.5} />, desc: "Organizers for household tasks, meals, and life's details." },
-    "Lifestyle": { icon: <Coffee size={32} strokeWidth={1.5} />, desc: "Tools to manage travel, health, and everyday routines." },
-    "Templates & Checklists": { icon: <CheckSquare size={32} strokeWidth={1.5} />, desc: "Quick, actionable checklists to get things done fast." },
-    "E-books & Guides": { icon: <Book size={32} strokeWidth={1.5} />, desc: "In-depth knowledge and step-by-step digital reads." },
-    "Planners & Organizers": { icon: <Calendar size={32} strokeWidth={1.5} />, desc: "Structured canvases for daily, weekly, and monthly clarity." },
-    "Digital Tools": { icon: <PenTool size={32} strokeWidth={1.5} />, desc: "Standalone spreadsheets and databases for complex tracking." },
+    "Life Style": { icon: <Coffee size={32} strokeWidth={1.5} />, desc: "Discover simple, natural approaches to everyday beauty." },
+    "AI Productivity Prompt Pack": { icon: <Cpu size={32} strokeWidth={1.5} />, desc: "Work smarter with ready-to-use AI prompts and tech workflows." },
+    "HomeBuild A-Z": { icon: <Home size={32} strokeWidth={1.5} />, desc: "A complete guide covering the home-building journey." },
   };
 
   const activeDetails = categoryDetails[activeCategory] || { icon: <ArrowUpRight size={32} strokeWidth={1.5} />, desc: "Explore our collection of digital products." };

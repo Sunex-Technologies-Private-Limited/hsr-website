@@ -104,8 +104,10 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 export function BrandMark({ inverse = false }: { inverse?: boolean }) {
   return (
     <Link href="/" className={`brand-mark ${inverse ? "brand-mark-inverse" : ""}`} aria-label="HSR Digital Hub home">
-      <span className="brand-mark-symbol">h</span>
-      <span className="brand-mark-word">hsr<span>digital hub</span></span>
+      <div className="brand-mark-image-container">
+        <img src="/assets/hsr_logo.png" alt="HSR Logo" className="brand-mark-symbol" />
+      </div>
+      <span className="brand-mark-word">HSR<span>digital hub</span></span>
     </Link>
   );
 }
@@ -132,11 +134,6 @@ export function SiteHeader() {
 
   return (
     <>
-      <div className="announcement-bar">
-        <span>SMART PRODUCTS. REAL VALUE. BETTER YOU.</span>
-        <span className="announcement-center">Digital products from ₹9</span>
-        <span className="announcement-link">Instant access <ArrowUpRight size={13} /></span>
-      </div>
       <header className={`site-header ${location === "/" && !scrolled ? "site-header-home" : ""} ${scrolled ? "scrolled" : ""}`}>
         <div className="container header-inner">
           <BrandMark inverse={location === "/" && !scrolled} />
@@ -177,8 +174,8 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="container footer-top">
         <div className="footer-brand"><BrandMark inverse /><p>Practical digital solutions for learning, productivity, career, business and everyday life.</p><div className="footer-socials"><a href="https://www.facebook.com/profile.php?id=61590198495302" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><Facebook size={14} /></a><a href="https://www.instagram.com/hsrdigitalhub/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><Instagram size={14} /></a></div></div>
-        <div className="footer-column"><h3>SHOP</h3><Link href="/shop">All Products</Link><Link href="/best-sellers">Best Sellers</Link><Link href="/new-arrivals">New Arrivals</Link><Link href="/bundles">Bundles</Link><Link href="/free-resources">Free Resources</Link></div>
-        <div className="footer-column"><h3>CATEGORIES</h3><Link href="/shop?category=Education%20%26%20Learning">Education</Link><Link href="/shop?category=AI%20%26%20Technology">AI & Technology</Link><Link href="/shop?category=Business">Business</Link><Link href="/shop?category=Productivity">Productivity</Link><Link href="/shop?category=Career%20%26%20Jobs">Career</Link><Link href="/shop?category=Lifestyle">Lifestyle</Link></div>
+        <div className="footer-column"><h3>SHOP</h3><Link href="/shop">All Products</Link><Link href="/best-sellers">Best Sellers</Link><Link href="/new-arrivals">New Arrivals</Link></div>
+        <div className="footer-column"><h3>CATEGORIES</h3><Link href="/shop?category=Education%20%26%20Learning">Education</Link><Link href="/shop?category=Life%20Style">Life Style</Link><Link href="/shop?category=AI%20Productivity%20Prompt%20Pack">AI Productivity</Link><Link href="/shop?category=HomeBuild%20A-Z">HomeBuild A-Z</Link></div>
         <div className="footer-column"><h3>COMPANY</h3><Link href="/about">About Us</Link><Link href="/blog">Blog</Link><Link href="/contact">Contact</Link><Link href="/faq">FAQ</Link><Link href="/support">Support</Link></div>
         <div className="footer-column"><h3>LEGAL</h3><Link href="/privacy-policy">Privacy Policy</Link><Link href="/terms-and-conditions">Terms & Conditions</Link><Link href="/refund-policy">Refund Policy</Link><Link href="/license">License Policy</Link></div>
       </div>
@@ -202,7 +199,7 @@ export function ProductCard({ product, compact = false }: { product: Product; co
         {!product.imagePath && <span className="cover-pattern" />}
         {!product.imagePath && <span className="cover-index"><CoverIcon type={product.type} /></span>}
         <span className="cover-label">{product.coverLabel}</span>
-        <span className="cover-type">{product.type} / HSR</span>
+        <span className="cover-type">{product.type}</span>
         {product.imagePath && <span className="image-shade" />}
         {product.badge && <span className="product-badge">{product.badge}</span>}
         <button 
@@ -214,9 +211,9 @@ export function ProductCard({ product, compact = false }: { product: Product; co
         </button>
         <span className="quick-view">View product <ArrowUpRight size={14} /></span>
       </Link>
-      <div className="product-meta"><div><span className="product-category">{product.category}</span><Link href={`/product/${product.slug}`} className="product-name">{product.name}</Link></div><button className="add-mini" aria-label={`Add ${product.name} to bag`} onClick={() => add(product as any)}><Plus size={17} /></button></div>
+      <div className="product-meta"><div><span className="product-category">{product.category}</span><Link href={`/product/${product.slug}`} className="product-name">{product.name}</Link></div>{product.badge !== "Coming Soon" && <button className="add-mini" aria-label={`Add ${product.name} to bag`} onClick={() => add(product as any)}><Plus size={17} /></button>}</div>
       {!compact && <p className="product-description">{product.description}</p>}
-      <div className="price-row"><span className="price">{formatPrice(product.price)}</span>{product.compareAt && <span className="compare-price">{formatPrice(product.compareAt)}</span>}<span className="format-pill">{product.format}</span></div>
+      <div className="price-row"><span className="price">{product.badge === "Coming Soon" ? "Coming Soon" : formatPrice(product.price)}</span>{product.compareAt && product.badge !== "Coming Soon" && <span className="compare-price">{formatPrice(product.compareAt)}</span>}<span className="format-pill">{product.format}</span></div>
     </article>
   );
 }

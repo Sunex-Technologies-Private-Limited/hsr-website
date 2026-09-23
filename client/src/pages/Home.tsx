@@ -13,12 +13,10 @@ export default function Home() {
   const featured = allProducts.slice(0, 4);
   
   const whatWeOffer = [
-    { title: "Learning & Education", desc: "E-books, study resources, guides, worksheets and learning materials.", icon: BookOpen },
-    { title: "Business & Productivity", desc: "Business templates, planners, checklists, workflows and productivity resources.", icon: Briefcase },
-    { title: "AI-Powered Tools", desc: "AI prompts, AI resources, productivity tools and practical AI solutions.", icon: Bot },
-    { title: "Career & Professional Growth", desc: "Career guides, interview resources, resume resources and professional development tools.", icon: LineChart },
-    { title: "Home & Planning", desc: "Home planning resources, organizers, checklists and household management tools.", icon: HomeIcon },
-    { title: "Lifestyle", desc: "Lifestyle planners, personal development resources and everyday digital solutions.", icon: Coffee }
+    { title: "Education & Learning", desc: "E-books, study resources, guides, worksheets and learning materials.", icon: BookOpen },
+    { title: "Life Style", desc: "Chemical free beauty tips, personal development resources and everyday digital solutions.", icon: Coffee },
+    { title: "AI Productivity Prompt Pack", desc: "AI prompts, productivity tools and practical AI solutions.", icon: Bot },
+    { title: "HomeBuild A-Z", desc: "Infrastructure, home planning resources, organizers and household management tools.", icon: HomeIcon }
   ];
 
   return (
@@ -44,7 +42,7 @@ export default function Home() {
               <div className="hero-image-caption"><span>01 / Digital resources</span><span className="flex items-center gap-1">Ready when you are <ArrowUpRight size={14} /></span></div>
             </div>
             <div className="hero-float-card">
-              <span className="float-card-icon"><Sparkles size={17} /></span><span><b>Small tools.</b><br />Real momentum.</span>
+              <span className="float-card-icon"><Sparkles size={17} /></span><span><b>Smart tools.</b><br />Real momentum.</span>
             </div>
             <div className="hero-scribble">scroll to explore <ArrowDown size={15} /></div>
           </div>
@@ -54,6 +52,50 @@ export default function Home() {
       <div className="container">
         <TrustStrip />
       </div>
+
+      <section className="section" style={{ background: 'var(--paper)', padding: '100px 0' }}>
+        <div className="container">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px', alignItems: 'stretch' }}>
+            
+            <div style={{ background: 'var(--white)', padding: '50px', borderRadius: '24px', border: '1px solid var(--line)' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: 'var(--sky)', color: 'var(--navy)', marginBottom: '32px' }}>
+                <Download size={28} />
+              </div>
+              <h2 style={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '36px', marginBottom: '20px', color: 'var(--navy)', lineHeight: 1.1, letterSpacing: '-0.02em' }}>What are Digital Products?</h2>
+              <p style={{ color: 'var(--muted)', fontSize: '17px', lineHeight: 1.7, marginBottom: '16px' }}>Digital products are downloadable resources that help you learn, plan, create, organize, and grow without waiting for physical delivery.</p>
+              <div style={{ height: '1px', background: 'var(--line)', margin: '24px 0' }} />
+              <p style={{ color: 'var(--muted)', fontSize: '17px', lineHeight: 1.7 }}>Unlike physical products, digital solutions are available instantly, can be accessed from anywhere, and continue delivering value every day.</p>
+            </div>
+
+            <div style={{ background: 'var(--navy)', padding: '50px', borderRadius: '24px', color: 'white', position: 'relative', overflow: 'hidden' }}>
+              <div className="cover-pattern" style={{ opacity: 0.5 }} />
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(255,255,255,0.1)', color: 'var(--sky)', marginBottom: '32px' }}>
+                  <Target size={28} />
+                </div>
+                <h2 style={{ fontFamily: '"Fraunces", Georgia, serif', fontSize: '36px', marginBottom: '24px', color: 'white', lineHeight: 1.1, letterSpacing: '-0.02em' }}>Who Is It For?</h2>
+                <ul style={{ display: 'flex', flexDirection: 'column', gap: '20px', listStyle: 'none', padding: 0, margin: 0 }}>
+                  {[
+                    "Students striving for academic success",
+                    "Professionals looking to improve productivity",
+                    "Entrepreneurs seeking practical solutions",
+                    "Families planning their future with confidence",
+                    "Builders & architects needing efficient resources"
+                  ].map((item, i) => (
+                    <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', fontSize: '17px', color: '#adbed4', lineHeight: 1.5 }}>
+                      <div style={{ display: 'grid', placeItems: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', flexShrink: 0, marginTop: '2px' }}>
+                        <Check size={14} style={{ color: 'white' }} />
+                      </div>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
 
       <section className="section" style={{ background: 'var(--white)' }}>
         <div className="container">
