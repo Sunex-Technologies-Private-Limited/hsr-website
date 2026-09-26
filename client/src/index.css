@@ -442,7 +442,7 @@ small { font-size: 15px; opacity: 0.8; }
 .empty-bag p { max-width: 270px; margin: 0 0 24px; color: var(--muted); font-size: 15px; line-height: 1.65; }
 .drawer-items { flex: 1; overflow: auto; padding: 24px 0; }
 .drawer-item { position: relative; display: grid; grid-template-columns: 68px 1fr 20px; gap: 14px; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--line); }
-.drawer-thumb { display: grid; place-items: center; height: 78px; background-position: center; background-size: cover; color: white; font-family: "Fraunces", Georgia, serif; font-size: 24px; }
+.drawer-thumb { display: grid; place-items: center; height: 78px; background-position: center; background-size: cover; color: white; font-family: "Fraunces", Georgia, serif; font-size: 24px; position: relative; overflow: hidden; border-radius: 4px; }
 .drawer-item h3 { margin: 0 0 9px; color: var(--navy); font-family: "Fraunces", Georgia, serif; font-size: 17px; font-weight: 500; line-height: 1; letter-spacing: -.03em; }
 .drawer-item strong { color: var(--navy); font-size: 15px; }
 .remove-item { align-self: start; display: grid; color: var(--muted); background: transparent; cursor: pointer; }
