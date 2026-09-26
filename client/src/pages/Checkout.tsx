@@ -29,6 +29,7 @@ export default function Checkout() {
     });
   };
 
+  const verifyPayment = trpc.orders.verifyPayment.useMutation();
   const createOrder = trpc.orders.create.useMutation({
     onSuccess: async (data) => {
       const res = await loadRazorpayScript();
@@ -39,20 +40,31 @@ export default function Checkout() {
       }
 
       const options = {
-        key: "rzp_test_mock",
-        amount: data.totalAmount * 100,
-        currency: "INR",
+        key: data.razorpayKeyId,
+        amount: data.totalAmount,
+        currency: data.currency,
         name: "HSR Digital Hub",
         description: "Secure Purchase",
         order_id: data.razorpayOrderId,
-        handler: function (response: any) {
-          clear();
-          setLocation(`/order-confirmation/${data.orderId}`);
+        handler: async function (response: any) {
+          try {
+            await verifyPayment.mutateAsync({
+              orderId: data.orderId,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature
+            });
+            clear();
+            setLocation(`/order-confirmation/${data.accessToken}`);
+          } catch (err: any) {
+            toast.error("Payment verification failed", { description: err.message });
+            setIsProcessing(false);
+          }
         },
         prefill: {
           name: user?.name || "",
           email: user?.email || "",
-          contact: "9999999999"
+          contact: (document.querySelector('input[name="mobile"]') as HTMLInputElement)?.value || "9999999999"
         },
         theme: {
           color: "#0d2142"
@@ -95,7 +107,7 @@ export default function Checkout() {
           <h1 style={{ fontSize: "2.5rem", marginTop: "10px" }}>Complete your order</h1>
         </div>
         
-        <div style={{ display: "grid", gap: "2rem", gridTemplateColumns: "1fr 350px", alignItems: "start" }}>
+        <div className="checkout-grid">
           
           <div style={{ background: "var(--stone)", padding: "30px", borderRadius: "12px" }}>
             <h2 style={{ marginBottom: "1.5rem", fontSize: "1.2rem" }}>Billing Details</h2>

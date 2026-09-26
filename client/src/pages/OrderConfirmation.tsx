@@ -3,11 +3,11 @@ import { ArrowUpRight, Check, Download, AlertCircle } from "lucide-react";
 import { trpc } from "../lib/trpc";
 
 export default function OrderConfirmation({ params }: { params: { orderId: string } }) {
-  const orderId = Number(params.orderId);
+  const token = params.orderId;
   
-  const { data: order, isLoading, error } = trpc.orders.getById.useQuery(
-    { orderId },
-    { enabled: !isNaN(orderId), retry: false }
+  const { data: order, isLoading, error } = trpc.orders.getByToken.useQuery(
+    { token },
+    { enabled: !!token, retry: false }
   );
 
   if (isLoading) {
@@ -47,24 +47,35 @@ export default function OrderConfirmation({ params }: { params: { orderId: strin
           Order Number: <strong>{order.orderNumber}</strong>
         </p>
 
-        <div style={{ background: 'var(--stone)', padding: '40px', borderRadius: '12px', marginBottom: '30px' }}>
-          <h2 style={{ fontSize: '20px', marginBottom: '15px' }}>Your digital product is ready.</h2>
-          <p style={{ marginBottom: '30px', color: 'var(--ink-light)' }}>
-            We've also sent a confirmation email to <strong>{order.customerEmail}</strong> with your download link so you can access it anytime.
-          </p>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: "15px", marginBottom: "30px" }}>
-            {order.items.map((item) => (
-              <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px", background: "white", borderRadius: "8px" }}>
-                <span style={{ fontWeight: 500 }}>{item.productName}</span>
-                <a href={item.downloadPath || `/api/downloads/${item.productSlug}`} className="button button-primary" style={{ padding: '8px 16px', fontSize: '14px' }}>
-                  <Download size={16} style={{ marginRight: '8px' }} /> Download
-                </a>
-              </div>
-            ))}
+        {order.status === "paid" ? (
+          <div style={{ background: 'var(--stone)', padding: '40px', borderRadius: '12px', marginBottom: '30px' }}>
+            <h2 style={{ fontSize: '20px', marginBottom: '15px' }}>Your digital product is ready.</h2>
+            <p style={{ marginBottom: '30px', color: 'var(--ink-light)' }}>
+              We've also sent a confirmation email to <strong>{order.customerEmail}</strong> with your download link so you can access it anytime.
+            </p>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "15px", marginBottom: "30px" }}>
+              {order.items.map((item) => (
+                <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px", background: "white", borderRadius: "8px" }}>
+                  <span style={{ fontWeight: 500 }}>{item.productName}</span>
+                  <a href={item.downloadToken ? `/api/downloads/${item.downloadToken}` : "#"} className="button button-primary" style={{ padding: '8px 16px', fontSize: '14px' }}>
+                    <Download size={16} style={{ marginRight: '8px' }} /> Download
+                  </a>
+                </div>
+              ))}
+            </div>
           </div>
-
-        </div>
+        ) : (
+          <div style={{ background: 'var(--stone)', padding: '40px', borderRadius: '12px', marginBottom: '30px' }}>
+            <h2 style={{ fontSize: '20px', marginBottom: '15px' }}>Payment Processing</h2>
+            <p style={{ marginBottom: '30px', color: 'var(--ink-light)' }}>
+              We are verifying your secure payment. Once confirmed, we will email your download link to <strong>{order.customerEmail}</strong>.
+            </p>
+            <button className="button button-primary" onClick={() => window.location.reload()} style={{ padding: '10px 20px' }}>
+              Refresh Status
+            </button>
+          </div>
+        )}
 
         <Link href="/shop" className="text-link">
           Continue shopping <ArrowUpRight size={16} />

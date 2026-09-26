@@ -121,7 +121,7 @@ export function FAQ() {
           <span className="eyebrow" style={{ color: 'var(--cobalt)' }}>WE'RE HERE TO HELP</span>
           <h1 style={{
             fontFamily: '"Fraunces", Georgia, serif',
-            fontSize: 'clamp(70px, 9vw, 130px)',
+            fontSize: 'clamp(40px, 9vw, 90px)',
             fontWeight: 400,
             lineHeight: 0.85,
             letterSpacing: '-0.06em',

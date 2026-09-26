@@ -12,18 +12,27 @@ webhooksRouter.post("/razorpay", async (req, res) => {
   const secret = env.RAZORPAY_KEY_SECRET || "rzp_test_mock_secret";
   const signature = req.headers["x-razorpay-signature"];
 
-  if (signature) {
-    const expectedSignature = crypto
-      .createHmac("sha256", secret)
-      .update(JSON.stringify(req.body))
-      .digest("hex");
-
-    if (expectedSignature !== signature) {
-      return res.status(400).json({ error: "Invalid signature" });
-    }
+  if (!signature) {
+    return res.status(400).json({ error: "Missing signature" });
   }
 
-  const { event, payload } = req.body;
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(req.body) // req.body is now a raw Buffer from express.raw
+    .digest("hex");
+
+  if (expectedSignature !== signature) {
+    return res.status(400).json({ error: "Invalid signature" });
+  }
+
+  let event, payload;
+  try {
+    const parsed = JSON.parse(req.body.toString("utf8"));
+    event = parsed.event;
+    payload = parsed.payload;
+  } catch (err) {
+    return res.status(400).json({ error: "Invalid JSON payload" });
+  }
 
   // We handle payment.captured as it means the payment was successful
   if (event === "payment.captured" || event === "order.paid") {
@@ -41,17 +50,16 @@ webhooksRouter.post("/razorpay", async (req, res) => {
       const orderList = await db.select().from(orders).where(eq(orders.paymentReference, razorpayOrderId)).limit(1);
       const order = orderList[0];
       
-      if (order && order.status !== "paid") {
+      if (order) {
+        if (order.status === "paid") {
+          // Idempotency: Already processed
+          return res.status(200).json({ success: true, message: "Already processed" });
+        }
+        
         await db.update(orders).set({ status: "paid" }).where(eq(orders.id, order.id));
         
-        const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-        
-        const downloadLinks = items.map(i => ({
-          name: i.productName,
-          url: `https://hsrdigitalhub.com/api/downloads/${i.productSlug}`
-        }));
-        
-        await sendOrderConfirmation(order.customerEmail, order.customerName, order.orderNumber, downloadLinks);
+        const { fulfillOrder } = await import("../db");
+        await fulfillOrder(order.id);
       }
     } catch (e) {
       console.error("Webhook processing error:", e);

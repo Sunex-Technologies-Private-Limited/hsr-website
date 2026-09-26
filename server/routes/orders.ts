@@ -5,8 +5,10 @@ import { createOrder, getProductBySlug, getDb } from "../db";
 import { DEFAULT_CURRENCY, ORDER_PREFIX, STATUS_PENDING } from "../../shared/const";
 import { env } from "../env";
 import Razorpay from "razorpay";
-import { orders, orderItems } from "../../drizzle/schema";
-import { eq, desc } from "drizzle-orm";
+import { orders, orderItems, downloadTokens } from "../../drizzle/schema";
+import { eq, desc, inArray } from "drizzle-orm";
+import crypto from "crypto";
+import { TRPCError } from "@trpc/server";
 
 const email = z.string().trim().toLowerCase().email().max(320);
 const slug = z.string().trim().min(1).max(160);
@@ -29,13 +31,16 @@ export const ordersRouter = router({
     const totalAmount = normalizedItems.reduce((sum, { item, product }) => sum + product.price * item.quantity, 0);
     const orderNumber = `${ORDER_PREFIX}${Date.now().toString(36).toUpperCase()}-${nanoid(6).toUpperCase()}`;
     const razorpayOrder = await razorpay.orders.create({
-      amount: totalAmount * 100, // Amount in paise
+      amount: totalAmount, // DB price is already in paise (e.g. 19900 = ₹199)
       currency: DEFAULT_CURRENCY,
       receipt: orderNumber,
     });
 
+    const accessToken = nanoid(32);
+
     const orderId = await createOrder({ 
       orderNumber, 
+      accessToken,
       customerEmail: input.email, 
       customerName: input.name, 
       totalAmount, 
@@ -52,19 +57,76 @@ export const ordersRouter = router({
       downloadPath: product.digitalAssetUrl || product.imagePath 
     })));
     
-    return { success: true, orderId, orderNumber, totalAmount, currency: DEFAULT_CURRENCY, status: STATUS_PENDING, razorpayOrderId: razorpayOrder.id };
+    return { 
+      success: true, 
+      orderId, 
+      accessToken,
+      orderNumber, 
+      totalAmount, 
+      currency: DEFAULT_CURRENCY, 
+      status: STATUS_PENDING, 
+      razorpayOrderId: razorpayOrder.id,
+      razorpayKeyId: env.RAZORPAY_KEY_ID || "rzp_test_mock"
+    };
   }),
 
-  getById: publicProcedure.input(z.object({
-    orderId: z.number()
+  verifyPayment: publicProcedure.input(z.object({
+    orderId: z.number(),
+    razorpayOrderId: z.string(),
+    razorpayPaymentId: z.string(),
+    razorpaySignature: z.string(),
+  })).mutation(async ({ input }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database unavailable");
+    
+    const secret = env.RAZORPAY_KEY_SECRET || "rzp_test_mock_secret";
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(`${input.razorpayOrderId}|${input.razorpayPaymentId}`)
+      .digest("hex");
+      
+    if (expectedSignature !== input.razorpaySignature) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payment signature" });
+    }
+    
+    const orderList = await db.select().from(orders).where(eq(orders.id, input.orderId)).limit(1);
+    const order = orderList[0];
+    if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+    
+    if (order.paymentReference !== input.razorpayOrderId) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Payment reference mismatch" });
+    }
+    
+    if (order.status !== "paid") {
+      await db.update(orders).set({ status: "paid" }).where(eq(orders.id, input.orderId));
+      const { fulfillOrder } = await import("../db");
+      await fulfillOrder(order.id);
+    }
+    
+    return { success: true };
+  }),
+
+  getByToken: publicProcedure.input(z.object({
+    token: z.string()
   })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
-    const orderList = await db.select().from(orders).where(eq(orders.id, input.orderId)).limit(1);
+    const orderList = await db.select().from(orders).where(eq(orders.accessToken, input.token)).limit(1);
     if (!orderList[0]) throw new Error("Order not found");
     
-    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, input.orderId));
-    return { ...orderList[0], items };
+    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderList[0].id));
+    
+    let tokens: any[] = [];
+    if (items.length > 0) {
+      tokens = await db.select().from(downloadTokens).where(inArray(downloadTokens.orderItemId, items.map(i => i.id)));
+    }
+    
+    const itemsWithTokens = items.map(item => {
+      const tokenObj = tokens.find(t => t.orderItemId === item.id);
+      return { ...item, downloadToken: tokenObj?.token };
+    });
+
+    return { ...orderList[0], items: itemsWithTokens };
   }),
 
   myOrders: protectedProcedure.query(async ({ ctx }) => {

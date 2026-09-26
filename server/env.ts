@@ -5,9 +5,9 @@ import { DEFAULT_PORT } from "./const";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.string().regex(/^\d+$/).default(DEFAULT_PORT.toString()),
-  DATABASE_URL: z.string().url("DATABASE_URL must be a valid URL").optional(),
-  RAZORPAY_KEY_ID: z.string().optional(),
-  RAZORPAY_KEY_SECRET: z.string().optional(),
+  DATABASE_URL: z.string().url("DATABASE_URL must be a valid Postgres URL"),
+  RAZORPAY_KEY_ID: z.string(),
+  RAZORPAY_KEY_SECRET: z.string(),
   RESEND_API_KEY: z.string().optional(),
   AWS_REGION: z.string().optional(),
   AWS_ACCESS_KEY_ID: z.string().optional(),

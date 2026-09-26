@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { publicProcedure, router } from "../_core/trpc";
+import { adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { products, InsertProduct } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { products, InsertProduct, orders, users, reviews } from "../../drizzle/schema";
+import { eq, desc } from "drizzle-orm";
 
 const productSchema = z.object({
   slug: z.string().trim().min(1),
@@ -23,37 +23,88 @@ const productSchema = z.object({
 });
 
 export const adminRouter = router({
-  createProduct: publicProcedure.input(productSchema).mutation(async ({ input }) => {
+  createProduct: adminProcedure.input(productSchema).mutation(async ({ input, ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("No database connection");
     await db.insert(products).values(input).onConflictDoUpdate({
       target: products.slug,
       set: input
     });
+    console.log(`[AUDIT] Admin ${ctx.user.email} created/updated product ${input.slug}`);
     return { success: true };
   }),
   
-  updateProduct: publicProcedure.input(productSchema).mutation(async ({ input }) => {
+  updateProduct: adminProcedure.input(productSchema).mutation(async ({ input, ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("No database connection");
     await db.update(products).set(input).where(eq(products.slug, input.slug));
+    console.log(`[AUDIT] Admin ${ctx.user.email} updated product ${input.slug}`);
     return { success: true };
   }),
   
-  deleteProduct: publicProcedure.input(z.object({ slug: z.string() })).mutation(async ({ input }) => {
+  deleteProduct: adminProcedure.input(z.object({ slug: z.string() })).mutation(async ({ input, ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("No database connection");
     await db.delete(products).where(eq(products.slug, input.slug));
+    console.log(`[AUDIT] Admin ${ctx.user.email} deleted product ${input.slug}`);
     return { success: true };
   }),
   
-  updateProductFile: publicProcedure.input(z.object({
+  updateProductFile: adminProcedure.input(z.object({
     slug: z.string(),
     filename: z.string()
-  })).mutation(async ({ input }) => {
+  })).mutation(async ({ input, ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("No database connection");
     await db.update(products).set({ downloadPath: input.filename }).where(eq(products.slug, input.slug));
+    console.log(`[AUDIT] Admin ${ctx.user.email} updated product file for ${input.slug}`);
     return { success: true };
+  }),
+
+  listOrders: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("No database connection");
+    return db.select().from(orders).orderBy(desc(orders.createdAt));
+  }),
+
+  setOrderStatus: adminProcedure.input(z.object({
+    orderId: z.number(),
+    status: z.enum(["pending", "paid", "fulfilled", "cancelled"])
+  })).mutation(async ({ input, ctx }) => {
+    const db = await getDb();
+    if (!db) throw new Error("No database connection");
+    await db.update(orders).set({ status: input.status }).where(eq(orders.id, input.orderId));
+    console.log(`[AUDIT] Admin ${ctx.user.email} changed order ${input.orderId} status to ${input.status}`);
+    return { success: true };
+  }),
+
+  listReviews: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("No database connection");
+    return db.select().from(reviews).orderBy(desc(reviews.createdAt));
+  }),
+
+  moderateReview: adminProcedure.input(z.object({
+    reviewId: z.number(),
+    status: z.enum(["pending", "approved", "rejected"])
+  })).mutation(async ({ input, ctx }) => {
+    const db = await getDb();
+    if (!db) throw new Error("No database connection");
+    await db.update(reviews).set({ status: input.status }).where(eq(reviews.id, input.reviewId));
+    console.log(`[AUDIT] Admin ${ctx.user.email} moderated review ${input.reviewId} to ${input.status}`);
+    // A trigger or background job should recompute averageRating for the product
+    return { success: true };
+  }),
+
+  listCustomers: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("No database connection");
+    return db.select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      createdAt: users.createdAt
+    }).from(users).orderBy(desc(users.createdAt));
   }),
 });

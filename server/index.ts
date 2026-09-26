@@ -20,8 +20,8 @@ import fs from "fs";
 import path from "path";
 import multer from "multer";
 import { getDb } from "./db";
-import { orderItems, orders } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { orderItems, orders, downloadTokens } from "../drizzle/schema";
+import { eq, inArray } from "drizzle-orm";
 import { sdk } from "./_core/sdk";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -51,9 +51,22 @@ async function startServer() {
   
   // 1. Security Middleware
   app.use(helmet({
-    contentSecurityPolicy: false, // Often conflicts with Vite dev server
+    contentSecurityPolicy: env.NODE_ENV === "production" ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com", "https://cdn.razorpay.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https://*"],
+        connectSrc: ["'self'", "https://api.razorpay.com", "https://lumberjack.razorpay.com"],
+        frameSrc: ["'self'", "https://api.razorpay.com"]
+      }
+    } : false,
   }));
-  app.use(cors());
+  
+  app.use(cors({
+    origin: env.NODE_ENV === "production" ? (process.env.FRONTEND_URL || "https://hsrdigitalhub.com") : "*"
+  }));
   
   // 2. Rate Limiting
   const limiter = rateLimit({
@@ -69,21 +82,37 @@ async function startServer() {
     message: "Too many login attempts, please try again later."
   });
   
+  const orderLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 20, // 20 orders per hour per IP
+    message: "Too many orders created, please try again later."
+  });
+  
+  const webhookLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100, 
+    message: "Too many webhooks"
+  });
+  
   app.use("/api/trpc/auth.login", authLimiter);
   app.use("/api/trpc/auth.register", authLimiter);
+  app.use("/api/trpc/orders.create", orderLimiter);
+  app.use("/api/webhooks", webhookLimiter);
   app.use("/api", limiter);
 
   // 3. Observability & Logging
   app.use(pinoHttp({ logger }));
   
+  // Webhooks need raw body for HMAC signature verification
+  app.use("/api/webhooks/razorpay", express.raw({ type: 'application/json' }));
+  app.use("/api/webhooks", webhooksRouter);
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: EXPRESS_BODY_LIMIT }));
   app.use(express.urlencoded({ limit: EXPRESS_BODY_LIMIT, extended: true }));
   
   registerStorageProxy(app);
   registerOAuthRoutes(app);
-  
-  app.use("/api/webhooks", webhooksRouter);
   
   // 4. tRPC API setup
   app.use(
@@ -108,7 +137,19 @@ async function startServer() {
   });
 
   // File Upload Route
-  const upload = multer({ storage: env.AWS_S3_BUCKET ? multer.memoryStorage() : multer.diskStorage({ destination: uploadDir }) });
+  import crypto from "crypto";
+  const upload = multer({ 
+    storage: env.AWS_S3_BUCKET ? multer.memoryStorage() : multer.diskStorage({ destination: uploadDir }),
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+    fileFilter: (req, file, cb) => {
+      const allowedMimes = ["application/pdf", "application/zip", "application/x-zip-compressed", "image/png", "image/jpeg", "image/webp"];
+      if (allowedMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Invalid file type"));
+      }
+    }
+  });
   app.post("/api/admin/upload", upload.single("file"), async (req, res) => {
     try {
       let user;
@@ -124,7 +165,7 @@ async function startServer() {
       let filename = req.file.filename;
       
       if (env.AWS_S3_BUCKET) {
-        filename = `${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+        filename = `${crypto.randomBytes(16).toString('hex')}-${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
         await s3.send(new PutObjectCommand({
           Bucket: env.AWS_S3_BUCKET,
           Key: filename,
@@ -141,60 +182,55 @@ async function startServer() {
   });
 
   // Secure Download Route
-  app.get("/api/downloads/:slug", async (req, res) => {
+  app.get("/api/downloads/:token", async (req, res) => {
     try {
-      let user;
-      try {
-        user = await sdk.authenticateRequest(req);
-      } catch (err) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      
-      if (!user) return res.status(401).json({ error: "Unauthorized" });
-      
-      const slug = req.params.slug;
+      const token = req.params.token;
       const db = await getDb();
       if (!db) return res.status(500).json({ error: "Database error" });
       
-      // Verify purchase
-      const userOrders = await db.select().from(orders).where(eq(orders.customerEmail, user.email as string));
-      let hasPurchased = false;
-      let downloadPath = null;
+      const tokens = await db.select().from(downloadTokens).where(eq(downloadTokens.token, token)).limit(1);
+      const downloadToken = tokens[0];
       
-      for (const order of userOrders) {
-        if (order.status !== "paid") continue;
-        const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-        const item = items.find((i: any) => i.productSlug === slug);
-        if (item) {
-          hasPurchased = true;
-          downloadPath = item.downloadPath;
-          break;
-        }
+      if (!downloadToken) {
+        return res.status(404).json({ error: "Invalid or missing download token" });
       }
       
-      // If not purchased, maybe they are admin?
-      if (!hasPurchased && user.role !== "admin") {
-        return res.status(403).json({ error: "You have not purchased this product." });
+      if (downloadToken.expiresAt < new Date()) {
+        return res.status(403).json({ error: "Download link has expired" });
       }
       
-      // Serve the file
-      if (downloadPath) {
-        if (env.AWS_S3_BUCKET) {
-          const command = new GetObjectCommand({
-            Bucket: env.AWS_S3_BUCKET,
-            Key: downloadPath,
-            ResponseContentDisposition: `attachment; filename="${slug}-download"`,
-          });
-          const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
-          return res.redirect(url);
-        } else if (fs.existsSync(path.join(uploadDir, downloadPath))) {
-          return res.download(path.join(uploadDir, downloadPath), `${slug}-download`);
-        }
+      if (downloadToken.remainingUses <= 0) {
+        return res.status(403).json({ error: "Download limit reached" });
       }
       
-      // Mock fallback if file doesn't exist or downloadPath is missing
-      res.setHeader("Content-Type", "text/plain");
-      res.send(`This is a mock digital download for ${slug}. In production with AWS_S3_BUCKET set, this would securely redirect to your S3 file.`);
+      const items = await db.select().from(orderItems).where(eq(orderItems.id, downloadToken.orderItemId)).limit(1);
+      const item = items[0];
+      
+      if (!item) return res.status(404).json({ error: "Product not found" });
+      
+      // Decrement remaining uses
+      await db.update(downloadTokens)
+        .set({ remainingUses: downloadToken.remainingUses - 1 })
+        .where(eq(downloadTokens.token, token));
+        
+      const downloadPath = item.downloadPath;
+      if (!downloadPath) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      if (env.AWS_S3_BUCKET) {
+        const command = new GetObjectCommand({
+          Bucket: env.AWS_S3_BUCKET,
+          Key: downloadPath,
+          ResponseContentDisposition: `attachment; filename="${item.productSlug}-download"`,
+        });
+        const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+        return res.redirect(url);
+      } else if (fs.existsSync(path.join(uploadDir, downloadPath))) {
+        return res.download(path.join(uploadDir, downloadPath), `${item.productSlug}-download`);
+      } else {
+        return res.status(404).json({ error: "File not found on server" });
+      }
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Download failed" });

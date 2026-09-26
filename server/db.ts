@@ -1,18 +1,21 @@
 import { and, desc, eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
-import { InsertOrder, InsertOrderItem, InsertProduct, InsertReview, InsertUser, newsletterSubscribers, orderItems, orders, products, reviews, users } from "../drizzle/schema";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { InsertOrder, InsertOrderItem, InsertProduct, InsertReview, InsertUser, newsletterSubscribers, orderItems, orders, products, reviews, users, downloadTokens } from "../drizzle/schema";
+import { nanoid } from "nanoid";
+import { sendOrderConfirmation } from "./email";
 import { ENV } from "./_core/env";
 import { ROLE_ADMIN, STATUS_APPROVED, STATUS_SUBSCRIBED, DEFAULT_NEWSLETTER_SOURCE } from "../shared/const";
 import path from "path";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _client: ReturnType<typeof postgres> | null = null;
 
 export async function getDb() {
   if (!_db) {
     try {
-      const sqlite = new Database(path.resolve(process.cwd(), "sqlite.db"));
-      _db = drizzle(sqlite);
+      _client = postgres(process.env.DATABASE_URL as string);
+      _db = drizzle(_client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -66,8 +69,8 @@ export async function getApprovedReviews(productId: number) {
 export async function createReview(review: InsertReview) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.insert(reviews).values(review);
-  return result.lastInsertRowid;
+  const result = await db.insert(reviews).values(review).returning({ id: reviews.id });
+  return result[0].id;
 }
 
 export async function markReviewHelpful(id: number) {
@@ -87,8 +90,42 @@ export async function upsertNewsletterSubscriber(email: string, source = DEFAULT
 export async function createOrder(order: InsertOrder, items: InsertOrderItem[]) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.insert(orders).values(order);
-  const orderId = Number(result.lastInsertRowid);
+  const result = await db.insert(orders).values(order).returning({ id: orders.id });
+  const orderId = result[0].id;
   if (orderId && items.length) await db.insert(orderItems).values(items.map((item) => ({ ...item, orderId })));
   return orderId;
+}
+
+export async function fulfillOrder(orderId: number) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const orderList = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  const order = orderList[0];
+  if (!order || order.status !== "paid") return;
+
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  const downloadLinks = [];
+  
+  for (const item of items) {
+    const token = nanoid(32);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    await db.insert(downloadTokens).values({ 
+      token, 
+      orderItemId: item.id, 
+      productSlug: item.productSlug, 
+      expiresAt, 
+      remainingUses: 10 
+    });
+    downloadLinks.push({ 
+      name: item.productName, 
+      url: `https://hsrdigitalhub.com/api/downloads/${token}` 
+    });
+  }
+  
+  try {
+    await sendOrderConfirmation(order.customerEmail, order.customerName, order.orderNumber, downloadLinks);
+  } catch (err) {
+    console.error("Failed to send fulfillment email:", err);
+  }
 }

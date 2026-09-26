@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Plus, Package, Edit, Trash, X } from "lucide-react";
 import { toast } from "sonner";
 import { categories } from "@/lib/store";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminDashboard() {
   const [location, setLocation] = useLocation();
@@ -25,8 +26,17 @@ export default function AdminDashboard() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const { user, isLoading: isAuthLoading } = useAuth();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isAuthLoading) {
+      if (!user || user.role !== "admin") {
+        setLocation("/login");
+      }
+    }
+  }, [user, isAuthLoading, setLocation]);
+
+  if (isAuthLoading || isLoading || !user || user.role !== "admin") {
     return <main className="utility-page"><div className="container" style={{ textAlign: 'center' }}>Loading Admin...</div></main>;
   }
 

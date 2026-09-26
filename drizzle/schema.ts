@@ -1,21 +1,21 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, pgTable, text, timestamp, serial } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-export const users = sqliteTable("users", {
-  id: integer("id", { mode: 'number' }).primaryKey({ autoIncrement: true }),
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   openId: text("openId").notNull().unique(), // We can keep this for compatibility
   password: text("password"), // Hashed password
   name: text("name"),
   email: text("email").unique(),
   loginMethod: text("loginMethod"),
   role: text("role").$type<"user" | "admin">().default("user").notNull(),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
-  lastSignedIn: integer('lastSignedIn', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+  lastSignedIn: timestamp('lastSignedIn').defaultNow().notNull(),
 });
 
-export const products = sqliteTable("products", {
-  id: integer("id", { mode: 'number' }).primaryKey({ autoIncrement: true }),
+export const products = pgTable("products", {
+  id: serial("id").primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   category: text("category").notNull(),
@@ -35,13 +35,13 @@ export const products = sqliteTable("products", {
   downloadPath: text("downloadPath"),
   averageRating: integer("averageRating").default(0).notNull(),
   reviewsCount: integer("reviewsCount").default(0).notNull(),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt').defaultNow().notNull(),
 });
 
-export const reviews = sqliteTable("reviews", {
-  id: integer("id", { mode: 'number' }).primaryKey({ autoIncrement: true }),
-  productId: integer("productId").notNull(),
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  productId: integer("productId").references(() => products.id).notNull(),
   reviewerName: text("reviewerName").notNull(),
   reviewerEmail: text("reviewerEmail"),
   rating: integer("rating").notNull(),
@@ -50,12 +50,13 @@ export const reviews = sqliteTable("reviews", {
   status: text("status").$type<"pending" | "approved" | "rejected">().default("pending").notNull(),
   verifiedPurchase: integer("verifiedPurchase").default(0).notNull(),
   helpfulCount: integer("helpfulCount").default(0).notNull(),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt').defaultNow().notNull(),
 });
 
-export const orders = sqliteTable("orders", {
-  id: integer("id", { mode: 'number' }).primaryKey({ autoIncrement: true }),
+export const orders = pgTable("orders", {
+  id: serial("id").primaryKey(),
+  accessToken: text("accessToken").unique(), // Unguessable token for secure /order-confirmation/:token
   orderNumber: text("orderNumber").notNull().unique(),
   customerEmail: text("customerEmail").notNull(),
   customerName: text("customerName").notNull(),
@@ -64,28 +65,37 @@ export const orders = sqliteTable("orders", {
   status: text("status").$type<"pending" | "paid" | "fulfilled" | "cancelled">().default("pending").notNull(),
   paymentProvider: text("paymentProvider"),
   paymentReference: text("paymentReference"),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt').defaultNow().notNull(),
 });
 
-export const orderItems = sqliteTable("orderItems", {
-  id: integer("id", { mode: 'number' }).primaryKey({ autoIncrement: true }),
-  orderId: integer("orderId").notNull(),
-  productId: integer("productId").notNull(),
+export const orderItems = pgTable("orderItems", {
+  id: serial("id").primaryKey(),
+  orderId: integer("orderId").references(() => orders.id).notNull(),
+  productId: integer("productId").references(() => products.id).notNull(),
   productSlug: text("productSlug").notNull(),
   productName: text("productName").notNull(),
   unitPrice: integer("unitPrice").notNull(),
   downloadPath: text("downloadPath"),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
 });
 
-export const newsletterSubscribers = sqliteTable("newsletterSubscribers", {
-  id: integer("id", { mode: 'number' }).primaryKey({ autoIncrement: true }),
+export const newsletterSubscribers = pgTable("newsletterSubscribers", {
+  id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   source: text("source").default("storefront").notNull(),
   status: text("status").$type<"subscribed" | "unsubscribed">().default("subscribed").notNull(),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
-  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+});
+
+export const downloadTokens = pgTable("downloadTokens", {
+  token: text("token").primaryKey(),
+  orderItemId: integer("orderItemId").references(() => orderItems.id).notNull(),
+  productSlug: text("productSlug").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  remainingUses: integer("remainingUses").default(10).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type User = typeof users.$inferSelect;

@@ -29,6 +29,20 @@
       "when": 1790409324587,
       "tag": "0003_confused_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790413009301,
+      "tag": "0004_youthful_lady_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790413092770,
+      "tag": "0005_red_harpoon",
+      "breakpoints": true
     }
   ]
 }
