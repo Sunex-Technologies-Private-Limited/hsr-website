@@ -5,21 +5,9 @@ import { publicProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
-import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import bcrypt from "bcrypt";
 import { nanoid } from "nanoid";
-
-function hashPassword(password: string): string {
-  const salt = randomBytes(16).toString("hex");
-  const derivedKey = scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${derivedKey}`;
-}
-
-function verifyPassword(password: string, hash: string): boolean {
-  const [salt, key] = hash.split(":");
-  const keyBuffer = Buffer.from(key, "hex");
-  const derivedKey = scryptSync(password, salt, 64);
-  return timingSafeEqual(keyBuffer, derivedKey);
-}
+import { sdk } from "../_core/sdk";
 
 const authSchema = z.object({
   email: z.string().email(),
@@ -36,7 +24,7 @@ export const authRouter = router({
     const existing = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
     if (existing.length > 0) throw new Error("Email already registered");
     
-    const hashedPassword = hashPassword(input.password);
+    const hashedPassword = await bcrypt.hash(input.password, 12);
     const openId = nanoid(); // Generate a unique openId
     
     const result = await db.insert(users).values({
@@ -46,11 +34,10 @@ export const authRouter = router({
       loginMethod: "email",
     });
     
-    // Automatically log in
+    // Automatically log in using secure JWT
     const cookieOptions = getSessionCookieOptions(ctx.req);
-    // Normally we'd sign a JWT here. For simplicity, we just use openId as session token
-    // In production, ALWAYS use a signed JWT or secure session store
-    ctx.res.cookie(COOKIE_NAME, openId, cookieOptions);
+    const sessionToken = await sdk.createSessionToken(openId, { name: input.email });
+    ctx.res.cookie(COOKIE_NAME, sessionToken, cookieOptions);
     
     return { success: true };
   }),
@@ -64,11 +51,12 @@ export const authRouter = router({
       throw new Error("Invalid credentials");
     }
     
-    const valid = verifyPassword(input.password, existing[0].password);
+    const valid = await bcrypt.compare(input.password, existing[0].password);
     if (!valid) throw new Error("Invalid credentials");
     
     const cookieOptions = getSessionCookieOptions(ctx.req);
-    ctx.res.cookie(COOKIE_NAME, existing[0].openId, cookieOptions);
+    const sessionToken = await sdk.createSessionToken(existing[0].openId, { name: existing[0].name || existing[0].email || "" });
+    ctx.res.cookie(COOKIE_NAME, sessionToken, cookieOptions);
     
     return { success: true, openId: existing[0].openId };
   }),

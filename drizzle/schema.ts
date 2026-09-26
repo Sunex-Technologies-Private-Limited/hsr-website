@@ -31,6 +31,10 @@ export const products = sqliteTable("products", {
   included: text("included").notNull(),
   forWho: text("forWho").notNull(),
   active: integer("active").default(1).notNull(),
+  digitalAssetUrl: text("digitalAssetUrl"),
+  downloadPath: text("downloadPath"),
+  averageRating: integer("averageRating").default(0).notNull(),
+  reviewsCount: integer("reviewsCount").default(0).notNull(),
   createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
 });

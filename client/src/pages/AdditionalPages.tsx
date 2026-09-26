@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ArrowRight, ArrowUpRight, Check, Heart, LogIn, Mail, MapPin, Phone, ShieldCheck, Sparkles, BookOpen, Cpu, Briefcase, Zap, Compass, Smile, Home, Coffee, CheckSquare, Book, Calendar, PenTool, AtSign } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { categories, formatPrice } from "@/lib/store";
@@ -31,6 +31,13 @@ export function About() {
     { title: "Accessibility", desc: "Making premium digital tools affordable and easy to use. Great design and practical utility shouldn't come with a luxury price tag.", icon: Compass, accent: "var(--cream)", text: "var(--navy)" }
   ];
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveTab((current) => (current + 1) % values.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [values.length]);
+
   return (
     <main className="about-page">
       <section className="about-hero">
@@ -56,7 +63,7 @@ export function About() {
         </div>
       </section>
 
-      <section className="section" style={{ padding: '120px 0', background: 'var(--white)' }}>
+      <section className="section" style={{ padding: 'clamp(60px, 10vw, 120px) 0', background: 'var(--white)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', maxWidth: '700px', margin: '0 auto 80px' }}>
             <span className="eyebrow eyebrow-dark">CORE VALUES</span>
@@ -105,11 +112,11 @@ export function About() {
             </div>
             
             {/* Right: Active Content Panel */}
-            <div style={{ 
+             <div style={{ 
                flex: '2 1 400px',
                background: values[activeTab].accent, 
                color: values[activeTab].text,
-               padding: '60px',
+               padding: 'clamp(30px, 6vw, 60px)',
                borderRadius: '32px',
                position: 'relative',
                overflow: 'hidden',
@@ -135,7 +142,7 @@ export function About() {
         </div>
       </section>
 
-      <section className="section" style={{ padding: '100px 0' }}>
+      <section className="section" style={{ padding: 'clamp(60px, 10vw, 100px) 0' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '60px' }}>
             <span className="eyebrow">OUR PRODUCTS</span>

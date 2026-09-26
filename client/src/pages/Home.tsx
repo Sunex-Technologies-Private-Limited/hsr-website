@@ -53,11 +53,11 @@ export default function Home() {
         <TrustStrip />
       </div>
 
-      <section className="section" style={{ background: 'var(--paper)', padding: '100px 0' }}>
+      <section className="section" style={{ background: 'var(--paper)', padding: 'clamp(60px, 8vw, 100px) 0' }}>
         <div className="container">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px', alignItems: 'stretch' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '30px', alignItems: 'stretch' }}>
             
-            <div style={{ background: 'var(--white)', padding: '50px', borderRadius: '24px', border: '1px solid var(--line)' }}>
+            <div style={{ background: 'var(--white)', padding: 'clamp(30px, 6vw, 50px)', borderRadius: '24px', border: '1px solid var(--line)' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: 'var(--sky)', color: 'var(--navy)', marginBottom: '32px' }}>
                 <Download size={28} />
               </div>
@@ -67,7 +67,7 @@ export default function Home() {
               <p style={{ color: 'var(--muted)', fontSize: '17px', lineHeight: 1.7 }}>Unlike physical products, digital solutions are available instantly, can be accessed from anywhere, and continue delivering value every day.</p>
             </div>
 
-            <div style={{ background: 'var(--navy)', padding: '50px', borderRadius: '24px', color: 'white', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ background: 'var(--navy)', padding: 'clamp(30px, 6vw, 50px)', borderRadius: '24px', color: 'white', position: 'relative', overflow: 'hidden' }}>
               <div className="cover-pattern" style={{ opacity: 0.5 }} />
               <div style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(255,255,255,0.1)', color: 'var(--sky)', marginBottom: '32px' }}>

@@ -53,8 +53,7 @@ export const adminRouter = router({
   })).mutation(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("No database connection");
-    // We repurpose imagePath as the download file path for now to avoid schema migrations just for the mock.
-    await db.update(products).set({ imagePath: input.filename }).where(eq(products.slug, input.slug));
+    await db.update(products).set({ downloadPath: input.filename }).where(eq(products.slug, input.slug));
     return { success: true };
   }),
 });

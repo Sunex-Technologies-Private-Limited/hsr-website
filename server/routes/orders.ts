@@ -3,11 +3,18 @@ import { nanoid } from "nanoid";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { createOrder, getProductBySlug, getDb } from "../db";
 import { DEFAULT_CURRENCY, ORDER_PREFIX, STATUS_PENDING } from "../../shared/const";
+import { env } from "../env";
+import Razorpay from "razorpay";
 import { orders, orderItems } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 
 const email = z.string().trim().toLowerCase().email().max(320);
 const slug = z.string().trim().min(1).max(160);
+
+const razorpay = new Razorpay({
+  key_id: env.RAZORPAY_KEY_ID || "rzp_test_mock",
+  key_secret: env.RAZORPAY_KEY_SECRET || "rzp_test_mock_secret",
+});
 
 export const ordersRouter = router({
   create: publicProcedure.input(z.object({ 
@@ -21,31 +28,43 @@ export const ordersRouter = router({
     const normalizedItems = input.items.map((item, index) => ({ item, product: products[index] }));
     const totalAmount = normalizedItems.reduce((sum, { item, product }) => sum + product.price * item.quantity, 0);
     const orderNumber = `${ORDER_PREFIX}${Date.now().toString(36).toUpperCase()}-${nanoid(6).toUpperCase()}`;
+    const razorpayOrder = await razorpay.orders.create({
+      amount: totalAmount * 100, // Amount in paise
+      currency: DEFAULT_CURRENCY,
+      receipt: orderNumber,
+    });
+
     const orderId = await createOrder({ 
       orderNumber, 
       customerEmail: input.email, 
       customerName: input.name, 
       totalAmount, 
       currency: DEFAULT_CURRENCY, 
-      status: STATUS_PENDING 
+      status: STATUS_PENDING,
+      paymentProvider: "razorpay",
+      paymentReference: razorpayOrder.id 
     }, normalizedItems.map(({ item, product }) => ({ 
       orderId: 0, 
       productId: product.id, 
       productSlug: product.slug, 
       productName: product.name, 
       unitPrice: product.price, 
-      downloadPath: product.imagePath 
+      downloadPath: product.digitalAssetUrl || product.imagePath 
     })));
-    return { success: true, orderId, orderNumber, totalAmount, currency: DEFAULT_CURRENCY, status: STATUS_PENDING };
+    
+    return { success: true, orderId, orderNumber, totalAmount, currency: DEFAULT_CURRENCY, status: STATUS_PENDING, razorpayOrderId: razorpayOrder.id };
   }),
 
-  simulatePayment: publicProcedure.input(z.object({
+  getById: publicProcedure.input(z.object({
     orderId: z.number()
-  })).mutation(async ({ input }) => {
+  })).query(async ({ input }) => {
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
-    await db.update(orders).set({ status: "paid" }).where(eq(orders.id, input.orderId));
-    return { success: true };
+    const orderList = await db.select().from(orders).where(eq(orders.id, input.orderId)).limit(1);
+    if (!orderList[0]) throw new Error("Order not found");
+    
+    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, input.orderId));
+    return { ...orderList[0], items };
   }),
 
   myOrders: protectedProcedure.query(async ({ ctx }) => {

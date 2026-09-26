@@ -32,9 +32,20 @@ export function useCart() {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<Product[]>([]);
+  const [items, setItems] = useState<Product[]>(() => {
+    try {
+      const stored = localStorage.getItem("hsr_cart");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [open, setOpen] = useState(false);
   const count = useMemo(() => items.length, [items]);
+
+  useEffect(() => {
+    localStorage.setItem("hsr_cart", JSON.stringify(items));
+  }, [items]);
 
   const add = (product: Product) => {
     setItems((prev) => {
@@ -52,9 +63,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const buyNow = (product: Product) => {
     setItems([product]);
-    setOpen(true);
-    // We emit a custom event to tell the drawer to switch to checkout state
-    window.dispatchEvent(new CustomEvent('hsr:checkout'));
+    window.location.href = "/checkout";
   };
 
   return (
@@ -222,50 +231,9 @@ export function ProductCard({ product, compact = false }: { product: Product; co
 import { useAuth } from "@/hooks/useAuth";
 
 export function CartDrawer() {
-  const { items, open, setOpen, remove, clear } = useCart();
-  const [checkoutState, setCheckoutState] = useState<"cart" | "checkout" | "success">("cart");
-  const [, setLocation] = useLocation();
-  const { user } = useAuth();
-  const [paymentMethod, setPaymentMethod] = useState("upi");
-  
-  const [lastOrder, setLastOrder] = useState<any>(null);
-
-  useEffect(() => {
-    const handleCheckout = () => setCheckoutState("checkout");
-    window.addEventListener('hsr:checkout', handleCheckout);
-    return () => window.removeEventListener('hsr:checkout', handleCheckout);
-  }, []);
-
-  const simulatePayment = trpc.orders.simulatePayment.useMutation({
-    onSuccess: () => {
-      setOpen(false);
-      clear();
-      setCheckoutState("cart");
-      if (lastOrder?.orderId) {
-        setLocation(`/order-confirmation/${lastOrder.orderId}`);
-      }
-    },
-    onError: () => toast.error("Payment failed", { description: "Could not process payment simulation." })
-  });
-
-  const createOrder = trpc.orders.create.useMutation({ 
-    onSuccess: (result) => { 
-      toast.info("Order created, processing payment...");
-      setLastOrder(result);
-      if (result.orderId) simulatePayment.mutate({ orderId: result.orderId });
-    }, 
-    onError: (err) => toast.error("Couldn’t create the order", { description: err.message }) 
-  });
-  
+  const { items, open, setOpen, remove } = useCart();
   if (!open) return null;
-  return <div className="drawer-backdrop" onClick={() => { setOpen(false); if (checkoutState === "success") { clear(); setCheckoutState("cart"); setLocation("/account"); } }}><aside className="cart-drawer" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Your bag"><div className="drawer-head"><div><span className="eyebrow">{checkoutState === "success" ? "ORDER COMPLETE" : "YOUR BAG"}</span><h2>{checkoutState === "success" ? "Payment Successful 🎉" : "Ready when you are."}</h2></div><button className="icon-button" onClick={() => { setOpen(false); if (checkoutState === "success") { clear(); setCheckoutState("cart"); setLocation("/account"); } }} aria-label="Close bag"><X size={20} /></button></div>{checkoutState === "success" ? <div className="success-state" style={{ padding: '20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', justifyContent: 'center' }}><div style={{ width: '60px', height: '60px', background: 'var(--brand)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}><Check size={30} /></div><p style={{ fontSize: '16px', lineHeight: 1.6 }}>Thank you for your purchase!<br/>Order Number: <strong>#{lastOrder?.orderId}</strong></p><div style={{ background: 'var(--stone)', padding: '20px', borderRadius: '8px' }}><p style={{ marginBottom: '15px' }}>Your digital product is ready for instant download.</p><button className="button button-primary button-full" onClick={() => { setOpen(false); clear(); setCheckoutState("cart"); setLocation("/account"); }}>Go to Download <ArrowUpRight size={17} /></button></div><small style={{ color: 'var(--ink-light)' }}>We've also sent a confirmation email with your download link.</small></div> : items.length === 0 ? <div className="empty-bag"><div className="empty-icon"><ShoppingBag size={28} /></div><h3>Your bag is waiting.</h3><p>Add a practical product and it will show up here. No shipping, no waiting — just digital access.</p><Link href="/shop" className="button button-primary" onClick={() => setOpen(false)}>Explore products <ArrowUpRight size={16} /></Link></div> : <><div className="drawer-items">{items.map((product) => <div className="drawer-item" key={product.slug}><div className={`drawer-thumb ${getCoverClass(product.accent)}`} style={getProductCoverStyle(product)}>{!product.imagePath && <span><CoverIcon type={product.type} /></span>}</div><div><span className="product-category">{product.category}</span><h3>{product.name}</h3><strong>{formatPrice(product.price)}</strong></div><button className="remove-item" onClick={() => remove(product.slug)} aria-label={`Remove ${product.name}`}><X size={15} /></button></div>)}</div><div className="drawer-checkout"><div className="drawer-total"><span>Subtotal</span><strong>{formatPrice(items.reduce((total, item) => total + item.price, 0))}</strong></div><div className="drawer-total" style={{ marginTop: '-10px' }}><span>Discount</span><strong>₹0</strong></div><div className="drawer-total" style={{ borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: '15px', marginTop: '5px' }}><span>Total</span><strong>{formatPrice(items.reduce((total, item) => total + item.price, 0))}</strong></div>{checkoutState === "checkout" ? <form className="checkout-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); createOrder.mutate({ name: String(data.get("name")), email: String(data.get("email")), items: items.map((item) => ({ slug: item.slug, quantity: 1 })) }); }}><input name="name" defaultValue={user?.name || ""} required placeholder="Your name" aria-label="Your name" /><input name="email" type="email" defaultValue={user?.email || ""} required placeholder="Email for digital access" aria-label="Email for digital access" /><input name="mobile" type="tel" required placeholder="Mobile Number" aria-label="Mobile Number" /><textarea name="billing" placeholder="Billing details (optional)" aria-label="Billing details" rows={2} style={{ width: '100%', padding: '12px 16px', background: 'var(--stone)', border: '1px solid transparent', borderRadius: '8px', fontSize: '15px' }}></textarea>
-<div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-  <span style={{ fontSize: '14px', fontWeight: 600 }}>Payment Method</span>
-  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', cursor: 'pointer' }}><input type="radio" name="payment" value="upi" checked={paymentMethod === 'upi'} onChange={(e) => setPaymentMethod(e.target.value)} /> UPI / QR</label>
-  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', cursor: 'pointer' }}><input type="radio" name="payment" value="card" checked={paymentMethod === 'card'} onChange={(e) => setPaymentMethod(e.target.value)} /> Debit / Credit Card</label>
-  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', cursor: 'pointer' }}><input type="radio" name="payment" value="netbanking" checked={paymentMethod === 'netbanking'} onChange={(e) => setPaymentMethod(e.target.value)} /> Net Banking</label>
-</div>
-<button className="button button-primary button-full" type="submit" disabled={createOrder.isPending || simulatePayment.isPending} style={{ marginTop: '20px' }}>{(createOrder.isPending || simulatePayment.isPending) ? "Processing secure checkout…" : "Complete Purchase"} <ArrowUpRight size={16} /></button><button className="checkout-back" type="button" onClick={() => setCheckoutState("cart")}>Back to bag</button></form> : <button className="button button-primary button-full" onClick={() => setCheckoutState("checkout")}>Proceed to Checkout <ArrowUpRight size={16} /></button>}<p><Check size={13} /> Secure payment · instant digital access</p></div></>}</aside></div>;
+  return <div className="drawer-backdrop" onClick={() => setOpen(false)}><aside className="cart-drawer" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Your bag"><div className="drawer-head"><div><span className="eyebrow">YOUR BAG</span><h2>Ready when you are.</h2></div><button className="icon-button" onClick={() => setOpen(false)} aria-label="Close bag"><X size={20} /></button></div>{items.length === 0 ? <div className="empty-bag"><div className="empty-icon"><ShoppingBag size={28} /></div><h3>Your bag is waiting.</h3><p>Add a practical product and it will show up here. No shipping, no waiting — just digital access.</p><Link href="/shop" className="button button-primary" onClick={() => setOpen(false)}>Explore products <ArrowUpRight size={16} /></Link></div> : <><div className="drawer-items">{items.map((product) => <div className="drawer-item" key={product.slug}><div className={`drawer-thumb ${getCoverClass(product.accent)}`} style={getProductCoverStyle(product)}>{!product.imagePath && <span><CoverIcon type={product.type} /></span>}</div><div><span className="product-category">{product.category}</span><h3>{product.name}</h3><strong>{formatPrice(product.price)}</strong></div><button className="remove-item" onClick={() => remove(product.slug)} aria-label={`Remove ${product.name}`}><X size={15} /></button></div>)}</div><div className="drawer-checkout"><div className="drawer-total"><span>Subtotal</span><strong>{formatPrice(items.reduce((total, item) => total + item.price, 0))}</strong></div><div className="drawer-total" style={{ marginTop: '-10px' }}><span>Discount</span><strong>₹0</strong></div><div className="drawer-total" style={{ borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: '15px', marginTop: '5px' }}><span>Total</span><strong>{formatPrice(items.reduce((total, item) => total + item.price, 0))}</strong></div><Link href="/checkout" className="button button-primary button-full" onClick={() => setOpen(false)}>Proceed to Checkout <ArrowUpRight size={16} /></Link><p><Check size={13} /> Secure payment · instant digital access</p></div></>}</aside></div>;
 }
 
 export function TrustStrip() {
