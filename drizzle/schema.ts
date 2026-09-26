@@ -56,6 +56,7 @@ export const reviews = pgTable("reviews", {
 
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
+  userId: integer("userId").references(() => users.id),
   accessToken: text("accessToken").unique(), // Unguessable token for secure /order-confirmation/:token
   orderNumber: text("orderNumber").notNull().unique(),
   customerEmail: text("customerEmail").notNull(),

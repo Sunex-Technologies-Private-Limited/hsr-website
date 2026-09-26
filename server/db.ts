@@ -90,10 +90,12 @@ export async function upsertNewsletterSubscriber(email: string, source = DEFAULT
 export async function createOrder(order: InsertOrder, items: InsertOrderItem[]) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.insert(orders).values(order).returning({ id: orders.id });
-  const orderId = result[0].id;
-  if (orderId && items.length) await db.insert(orderItems).values(items.map((item) => ({ ...item, orderId })));
-  return orderId;
+  return await db.transaction(async (tx) => {
+    const result = await tx.insert(orders).values(order).returning({ id: orders.id });
+    const orderId = result[0].id;
+    if (orderId && items.length) await tx.insert(orderItems).values(items.map((item) => ({ ...item, orderId })));
+    return orderId;
+  });
 }
 
 export async function fulfillOrder(orderId: number) {
@@ -105,6 +107,12 @@ export async function fulfillOrder(orderId: number) {
   if (!order || order.status !== "paid") return;
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  if (items.length === 0) return;
+  
+  // Idempotency check: if tokens already exist for the first item, assume fulfilled
+  const existingTokens = await db.select().from(downloadTokens).where(eq(downloadTokens.orderItemId, items[0].id)).limit(1);
+  if (existingTokens.length > 0) return;
+  
   const downloadLinks = [];
   
   for (const item of items) {

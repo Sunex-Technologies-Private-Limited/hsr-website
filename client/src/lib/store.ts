@@ -89,7 +89,7 @@ export const categories = [
 
 export const getProduct = (slug: string) => products.find((product) => product.slug === slug);
 
-export const formatPrice = (price: number) => `₹${price.toLocaleString("en-IN")}`;
+export const formatPrice = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 export const getCoverClass = (accent: string) => `cover-${accent}`;
 

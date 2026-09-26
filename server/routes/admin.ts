@@ -2,7 +2,7 @@ import { z } from "zod";
 import { adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { products, InsertProduct, orders, users, reviews } from "../../drizzle/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 const productSchema = z.object({
   slug: z.string().trim().min(1),
@@ -26,9 +26,14 @@ export const adminRouter = router({
   createProduct: adminProcedure.input(productSchema).mutation(async ({ input, ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("No database connection");
-    await db.insert(products).values(input).onConflictDoUpdate({
+    const formattedInput = {
+      ...input,
+      price: input.price * 100,
+      compareAt: input.compareAt ? input.compareAt * 100 : null
+    };
+    await db.insert(products).values(formattedInput).onConflictDoUpdate({
       target: products.slug,
-      set: input
+      set: formattedInput
     });
     console.log(`[AUDIT] Admin ${ctx.user.email} created/updated product ${input.slug}`);
     return { success: true };
@@ -37,7 +42,12 @@ export const adminRouter = router({
   updateProduct: adminProcedure.input(productSchema).mutation(async ({ input, ctx }) => {
     const db = await getDb();
     if (!db) throw new Error("No database connection");
-    await db.update(products).set(input).where(eq(products.slug, input.slug));
+    const formattedInput = {
+      ...input,
+      price: input.price * 100,
+      compareAt: input.compareAt ? input.compareAt * 100 : null
+    };
+    await db.update(products).set(formattedInput).where(eq(products.slug, input.slug));
     console.log(`[AUDIT] Admin ${ctx.user.email} updated product ${input.slug}`);
     return { success: true };
   }),
@@ -92,7 +102,17 @@ export const adminRouter = router({
     if (!db) throw new Error("No database connection");
     await db.update(reviews).set({ status: input.status }).where(eq(reviews.id, input.reviewId));
     console.log(`[AUDIT] Admin ${ctx.user.email} moderated review ${input.reviewId} to ${input.status}`);
-    // A trigger or background job should recompute averageRating for the product
+    
+    // Recompute averageRating and reviewsCount
+    const reviewRows = await db.select().from(reviews).where(eq(reviews.id, input.reviewId));
+    if (reviewRows.length > 0) {
+      const productId = reviewRows[0].productId;
+      const allApproved = await db.select().from(reviews).where(and(eq(reviews.productId, productId), eq(reviews.status, "approved")));
+      const totalReviews = allApproved.length;
+      const avgRating = totalReviews > 0 ? Math.round(allApproved.reduce((sum, r) => sum + r.rating, 0) / totalReviews) : 0;
+      await db.update(products).set({ averageRating: avgRating, reviewsCount: totalReviews }).where(eq(products.id, productId));
+    }
+    
     return { success: true };
   }),
 

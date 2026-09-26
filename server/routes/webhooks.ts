@@ -9,10 +9,10 @@ import { sendOrderConfirmation } from "../email";
 export const webhooksRouter = Router();
 
 webhooksRouter.post("/razorpay", async (req, res) => {
-  const secret = env.RAZORPAY_KEY_SECRET || "rzp_test_mock_secret";
+  const secret = env.RAZORPAY_KEY_SECRET;
   const signature = req.headers["x-razorpay-signature"];
 
-  if (!signature) {
+  if (!signature || typeof signature !== 'string') {
     return res.status(400).json({ error: "Missing signature" });
   }
 
@@ -21,7 +21,7 @@ webhooksRouter.post("/razorpay", async (req, res) => {
     .update(req.body) // req.body is now a raw Buffer from express.raw
     .digest("hex");
 
-  if (expectedSignature !== signature) {
+  if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature))) {
     return res.status(400).json({ error: "Invalid signature" });
   }
 

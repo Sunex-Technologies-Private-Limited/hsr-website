@@ -25,6 +25,7 @@ import { eq, inArray } from "drizzle-orm";
 import { sdk } from "./_core/sdk";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import crypto from "crypto";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -45,8 +46,8 @@ async function findAvailablePort(startPort: number = DEFAULT_PORT): Promise<numb
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+export const app = express();
 async function startServer() {
-  const app = express();
   const server = createServer(app);
   
   // 1. Security Middleware
@@ -64,15 +65,24 @@ async function startServer() {
     } : false,
   }));
   
+  const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : [process.env.FRONTEND_URL || "https://hsrdigitalhub.com"];
   app.use(cors({
-    origin: env.NODE_ENV === "production" ? (process.env.FRONTEND_URL || "https://hsrdigitalhub.com") : "*"
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
   }));
   
   // 2. Rate Limiting
   const limiter = rateLimit({
     windowMs: RATE_LIMIT_WINDOW_MS, 
     max: RATE_LIMIT_MAX_REQUESTS, 
-    message: RATE_LIMIT_MESSAGE
+    message: RATE_LIMIT_MESSAGE,
+    skip: (req) => req.originalUrl.startsWith("/api/webhooks")
   });
   
   // Strict Rate Limiting for Auth Routes
@@ -88,16 +98,9 @@ async function startServer() {
     message: "Too many orders created, please try again later."
   });
   
-  const webhookLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100, 
-    message: "Too many webhooks"
-  });
-  
   app.use("/api/trpc/auth.login", authLimiter);
   app.use("/api/trpc/auth.register", authLimiter);
   app.use("/api/trpc/orders.create", orderLimiter);
-  app.use("/api/webhooks", webhookLimiter);
   app.use("/api", limiter);
 
   // 3. Observability & Logging
@@ -137,7 +140,6 @@ async function startServer() {
   });
 
   // File Upload Route
-  import crypto from "crypto";
   const upload = multer({ 
     storage: env.AWS_S3_BUCKET ? multer.memoryStorage() : multer.diskStorage({ destination: uploadDir }),
     limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
@@ -203,10 +205,13 @@ async function startServer() {
         return res.status(403).json({ error: "Download limit reached" });
       }
       
-      const items = await db.select().from(orderItems).where(eq(orderItems.id, downloadToken.orderItemId)).limit(1);
-      const item = items[0];
+      const items = await db.select({ item: orderItems, order: orders }).from(orderItems).innerJoin(orders, eq(orderItems.orderId, orders.id)).where(eq(orderItems.id, downloadToken.orderItemId)).limit(1);
+      const result = items[0];
       
-      if (!item) return res.status(404).json({ error: "Product not found" });
+      if (!result || !result.item) return res.status(404).json({ error: "Product not found" });
+      if (result.order.status !== 'paid') return res.status(403).json({ error: "Order is not paid" });
+      
+      const item = result.item;
       
       // Decrement remaining uses
       await db.update(downloadTokens)
@@ -255,9 +260,12 @@ async function startServer() {
   server.listen(port, () => {
     logger.info(`Server running on http://localhost:${port}/`);
   });
+  return { app, server };
 }
 
-startServer().catch((err) => {
-  logger.error(err, "Fatal error during server startup");
-  process.exit(1);
-});
+if (process.env.NODE_ENV !== "test") {
+  startServer().catch((err) => {
+    logger.error(err, "Fatal error during server startup");
+    process.exit(1);
+  });
+}

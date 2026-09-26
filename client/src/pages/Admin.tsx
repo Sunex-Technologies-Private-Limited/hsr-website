@@ -6,6 +6,7 @@ import { ArrowUpRight, Plus, Package, Edit, Trash, X } from "lucide-react";
 import { toast } from "sonner";
 import { categories } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminDashboard() {
   const [location, setLocation] = useLocation();
@@ -24,9 +25,19 @@ export default function AdminDashboard() {
     onError: (err) => toast.error(err.message)
   });
 
+  const { data: orders, refetch: refetchOrders } = trpc.admin.listOrders.useQuery();
+  const setOrderStatus = trpc.admin.setOrderStatus.useMutation({
+    onSuccess: () => { toast.success("Order status updated"); refetchOrders(); },
+    onError: (err) => toast.error(err.message)
+  });
+  const { data: reviews, refetch: refetchReviews } = trpc.admin.listReviews.useQuery();
+  const moderateReview = trpc.admin.moderateReview.useMutation({
+    onSuccess: () => { toast.success("Review moderated"); refetchReviews(); },
+    onError: (err) => toast.error(err.message)
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, loading: isAuthLoading } = useAuth();
 
   useEffect(() => {
     if (!isAuthLoading) {
@@ -53,7 +64,14 @@ export default function AdminDashboard() {
           </Button>
         </div>
 
-        <div style={{ background: 'var(--white)', border: '1px solid rgba(23,41,73,.1)', borderRadius: '12px', overflow: 'hidden' }}>
+        <Tabs defaultValue="products">
+          <TabsList style={{ marginBottom: '20px' }}>
+            <TabsTrigger value="products">Products</TabsTrigger>
+            <TabsTrigger value="orders">Orders</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          </TabsList>
+          <TabsContent value="products">
+            <div style={{ background: 'var(--white)', border: '1px solid rgba(23,41,73,.1)', borderRadius: '12px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: 'rgba(251,248,242,1)', borderBottom: '1px solid rgba(23,41,73,.1)' }}>
@@ -74,7 +92,7 @@ export default function AdminDashboard() {
                     </div>
                   </td>
                   <td style={{ padding: '16px 20px', opacity: 0.8 }}>{product.category}</td>
-                  <td style={{ padding: '16px 20px' }}>₹{product.price}</td>
+                  <td style={{ padding: '16px 20px' }}>₹{product.price / 100}</td>
                   <td style={{ padding: '16px 20px' }}>
                     <span style={{ display: 'inline-block', padding: '4px 10px', background: product.active ? '#e6f4ea' : '#fce8e6', color: product.active ? '#137333' : '#c5221f', borderRadius: '20px', fontSize: '12px', fontWeight: 600 }}>
                       {product.active ? 'Active' : 'Draft'}
@@ -93,13 +111,13 @@ export default function AdminDashboard() {
                           const data = await res.json();
                           if (data.path) {
                             updateProductFile.mutate({ slug: product.slug, filename: data.path }, {
-                              onSuccess: () => alert("File uploaded and linked successfully!")
+                              onSuccess: () => toast.success("File uploaded and linked successfully!")
                             });
                           } else {
-                            alert("Upload failed.");
+                            toast.error("Upload failed.");
                           }
                         } catch (err) {
-                          alert("Upload error.");
+                          toast.error("Upload error.");
                         }
                       }} />
                     </label>
@@ -116,6 +134,73 @@ export default function AdminDashboard() {
             </tbody>
           </table>
         </div>
+          </TabsContent>
+          <TabsContent value="orders">
+            <div style={{ background: 'var(--white)', border: '1px solid rgba(23,41,73,.1)', borderRadius: '12px', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(251,248,242,1)', borderBottom: '1px solid rgba(23,41,73,.1)' }}>
+                    <th style={{ padding: '16px 20px', fontWeight: 600 }}>Order ID</th>
+                    <th style={{ padding: '16px 20px', fontWeight: 600 }}>Customer</th>
+                    <th style={{ padding: '16px 20px', fontWeight: 600 }}>Total</th>
+                    <th style={{ padding: '16px 20px', fontWeight: 600 }}>Status</th>
+                    <th style={{ padding: '16px 20px', fontWeight: 600, textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders?.map((order) => (
+                    <tr key={order.id} style={{ borderBottom: '1px solid rgba(23,41,73,.05)' }}>
+                      <td style={{ padding: '16px 20px' }}>{order.orderNumber}</td>
+                      <td style={{ padding: '16px 20px' }}>{order.customerEmail}</td>
+                      <td style={{ padding: '16px 20px' }}>₹{order.totalAmount / 100}</td>
+                      <td style={{ padding: '16px 20px' }}>{order.status}</td>
+                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                        <select value={order.status} onChange={(e) => setOrderStatus.mutate({ orderId: order.id, status: e.target.value as any })} style={{ padding: '4px 8px' }}>
+                          <option value="pending">Pending</option>
+                          <option value="paid">Paid</option>
+                          <option value="fulfilled">Fulfilled</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </TabsContent>
+          <TabsContent value="reviews">
+            <div style={{ background: 'var(--white)', border: '1px solid rgba(23,41,73,.1)', borderRadius: '12px', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(251,248,242,1)', borderBottom: '1px solid rgba(23,41,73,.1)' }}>
+                    <th style={{ padding: '16px 20px', fontWeight: 600 }}>Reviewer</th>
+                    <th style={{ padding: '16px 20px', fontWeight: 600 }}>Rating</th>
+                    <th style={{ padding: '16px 20px', fontWeight: 600 }}>Comment</th>
+                    <th style={{ padding: '16px 20px', fontWeight: 600 }}>Status</th>
+                    <th style={{ padding: '16px 20px', fontWeight: 600, textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reviews?.map((review) => (
+                    <tr key={review.id} style={{ borderBottom: '1px solid rgba(23,41,73,.05)' }}>
+                      <td style={{ padding: '16px 20px' }}>{review.reviewerName}</td>
+                      <td style={{ padding: '16px 20px' }}>{review.rating}/5</td>
+                      <td style={{ padding: '16px 20px' }}>{review.body}</td>
+                      <td style={{ padding: '16px 20px' }}>{review.status}</td>
+                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                        <select value={review.status} onChange={(e) => moderateReview.mutate({ reviewId: review.id, status: e.target.value as any })} style={{ padding: '4px 8px' }}>
+                          <option value="pending">Pending</option>
+                          <option value="approved">Approved</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {isModalOpen && (
@@ -171,8 +256,8 @@ export default function AdminDashboard() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <label>Price (₹)<input type="number" name="price" required defaultValue={editingProduct?.price || ""} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)' }} /></label>
-                <label>Compare At Price (₹) (Optional)<input type="number" name="compareAt" defaultValue={editingProduct?.compareAt || ""} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)' }} /></label>
+                <label>Price (₹)<input type="number" name="price" required defaultValue={editingProduct ? editingProduct.price / 100 : ""} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)' }} /></label>
+                <label>Compare At Price (₹) (Optional)<input type="number" name="compareAt" defaultValue={editingProduct?.compareAt ? editingProduct.compareAt / 100 : ""} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)' }} /></label>
               </div>
 
               <label>Description<textarea name="description" required rows={3} defaultValue={editingProduct?.description || ""} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)' }} /></label>

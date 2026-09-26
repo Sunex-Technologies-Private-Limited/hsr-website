@@ -49,7 +49,7 @@ export default function Checkout() {
         handler: async function (response: any) {
           try {
             await verifyPayment.mutateAsync({
-              orderId: data.orderId,
+              orderId: data.orderId!,
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature

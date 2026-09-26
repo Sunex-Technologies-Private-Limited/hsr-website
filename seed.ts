@@ -16,11 +16,11 @@ async function seed() {
       category: product.category,
       type: product.type,
       description: product.description,
-      price: product.price,
-      compareAt: product.compareAt,
+      price: product.price * 100,
+      compareAt: product.compareAt ? product.compareAt * 100 : null,
       badge: product.badge,
       accent: product.accent,
-      imagePath: product.image ?? "",
+      imagePath: product.imagePath ?? "",
       coverLabel: product.coverLabel,
       format: product.format,
       included: JSON.stringify(product.included),
@@ -30,7 +30,7 @@ async function seed() {
       target: productsTable.slug,
       set: {
         name: product.name,
-        price: product.price
+        price: product.price * 100
       }
     });
     console.log(`Seeded ${product.slug}`);

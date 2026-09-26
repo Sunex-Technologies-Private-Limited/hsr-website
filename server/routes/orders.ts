@@ -14,8 +14,8 @@ const email = z.string().trim().toLowerCase().email().max(320);
 const slug = z.string().trim().min(1).max(160);
 
 const razorpay = new Razorpay({
-  key_id: env.RAZORPAY_KEY_ID || "rzp_test_mock",
-  key_secret: env.RAZORPAY_KEY_SECRET || "rzp_test_mock_secret",
+  key_id: env.RAZORPAY_KEY_ID,
+  key_secret: env.RAZORPAY_KEY_SECRET,
 });
 
 export const ordersRouter = router({
@@ -23,10 +23,18 @@ export const ordersRouter = router({
     name: z.string().trim().min(2).max(160), 
     email, 
     items: z.array(z.object({ slug, quantity: z.number().int().min(1).max(10) })).min(1).max(20) 
-  })).mutation(async ({ input }) => {
+  })).mutation(async ({ input, ctx }) => {
     const catalog = await Promise.all(input.items.map((item) => getProductBySlug(item.slug)));
     if (catalog.some((product) => !product)) throw new Error("One or more products are unavailable");
     const products = catalog as NonNullable<(typeof catalog)[number]>[];
+    
+    // Strict validations (B5)
+    for (const product of products) {
+      if (!product.active) throw new TRPCError({ code: "BAD_REQUEST", message: `Product ${product.name} is inactive` });
+      if (product.badge === "Coming Soon") throw new TRPCError({ code: "BAD_REQUEST", message: `Product ${product.name} is not available yet` });
+      if (!product.digitalAssetUrl && !product.imagePath) throw new TRPCError({ code: "BAD_REQUEST", message: `Product ${product.name} missing digital asset` });
+    }
+
     const normalizedItems = input.items.map((item, index) => ({ item, product: products[index] }));
     const totalAmount = normalizedItems.reduce((sum, { item, product }) => sum + product.price * item.quantity, 0);
     const orderNumber = `${ORDER_PREFIX}${Date.now().toString(36).toUpperCase()}-${nanoid(6).toUpperCase()}`;
@@ -47,7 +55,8 @@ export const ordersRouter = router({
       currency: DEFAULT_CURRENCY, 
       status: STATUS_PENDING,
       paymentProvider: "razorpay",
-      paymentReference: razorpayOrder.id 
+      paymentReference: razorpayOrder.id,
+      userId: ctx.user?.id || null, // B9
     }, normalizedItems.map(({ item, product }) => ({ 
       orderId: 0, 
       productId: product.id, 
@@ -66,7 +75,7 @@ export const ordersRouter = router({
       currency: DEFAULT_CURRENCY, 
       status: STATUS_PENDING, 
       razorpayOrderId: razorpayOrder.id,
-      razorpayKeyId: env.RAZORPAY_KEY_ID || "rzp_test_mock"
+      razorpayKeyId: env.RAZORPAY_KEY_ID
     };
   }),
 
@@ -79,13 +88,13 @@ export const ordersRouter = router({
     const db = await getDb();
     if (!db) throw new Error("Database unavailable");
     
-    const secret = env.RAZORPAY_KEY_SECRET || "rzp_test_mock_secret";
+    const secret = env.RAZORPAY_KEY_SECRET;
     const expectedSignature = crypto
       .createHmac("sha256", secret)
       .update(`${input.razorpayOrderId}|${input.razorpayPaymentId}`)
       .digest("hex");
       
-    if (expectedSignature !== input.razorpaySignature) {
+    if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(input.razorpaySignature))) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payment signature" });
     }
     
@@ -95,6 +104,16 @@ export const ordersRouter = router({
     
     if (order.paymentReference !== input.razorpayOrderId) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "Payment reference mismatch" });
+    }
+    
+    // Fetch from Razorpay to confirm captured amount (B6)
+    try {
+      const payment = await razorpay.payments.fetch(input.razorpayPaymentId);
+      if (payment.amount !== order.totalAmount) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Amount mismatch detected" });
+      }
+    } catch (err) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Could not verify payment amount with Razorpay" });
     }
     
     if (order.status !== "paid") {
