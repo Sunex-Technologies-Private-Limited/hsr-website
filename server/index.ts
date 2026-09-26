@@ -215,7 +215,11 @@ async function startServer() {
     } : false,
   }));
   
-  const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : [process.env.FRONTEND_URL || "https://hsrdigitalhub.com"];
+  const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",") : [
+    process.env.FRONTEND_URL || "https://hsrdigitalhub.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+  ];
   app.use(cors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {

@@ -10,6 +10,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet" />
+    <script>
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+        document.body.innerHTML += '<div style="color:red;font-size:20px;padding:20px;z-index:9999;position:absolute;top:0;left:0;background:white;">' + msg + '<br/>' + url + ':' + lineNo + '</div>';
+        return false;
+      };
+      window.onunhandledrejection = function(event) {
+        document.body.innerHTML += '<div style="color:red;font-size:20px;padding:20px;z-index:9999;position:absolute;top:100px;left:0;background:white;">Unhandled Promise Rejection: ' + event.reason + '</div>';
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>

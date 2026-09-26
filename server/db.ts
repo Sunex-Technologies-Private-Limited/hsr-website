@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import Database from "better-sqlite3";
 import { InsertOrder, InsertOrderItem, InsertProduct, InsertReview, InsertUser, newsletterSubscribers, orderItems, orders, products, reviews, users, downloadTokens } from "../drizzle/schema";
 import { nanoid } from "nanoid";
 import { sendOrderConfirmation } from "./email";
@@ -9,13 +9,12 @@ import { ROLE_ADMIN, STATUS_APPROVED, STATUS_SUBSCRIBED, DEFAULT_NEWSLETTER_SOUR
 import path from "path";
 
 let _db: ReturnType<typeof drizzle> | null = null;
-let _client: ReturnType<typeof postgres> | null = null;
 
 export async function getDb() {
   if (!_db) {
     try {
-      _client = postgres(process.env.DATABASE_URL as string);
-      _db = drizzle(_client);
+      const sqlite = new Database(path.resolve(process.cwd(), "sqlite.db"));
+      _db = drizzle(sqlite);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
