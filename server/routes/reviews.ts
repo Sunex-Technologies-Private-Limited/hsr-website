@@ -22,7 +22,28 @@ export const reviewsRouter = router({
   })).mutation(async ({ input }) => {
     const product = await getProductBySlug(input.slug);
     if (!product) throw new Error("Product not found");
-    const status = input.rating >= 4 ? "approved" : STATUS_PENDING;
+    
+    let verifiedPurchase = 0;
+    if (input.email) {
+      const { getDb } = await import("../db");
+      const { orders, orderItems } = await import("../../drizzle/schema");
+      const { eq, and } = await import("drizzle-orm");
+      const db = await getDb();
+      if (db) {
+        const matchingOrders = await db.select({ id: orders.id })
+          .from(orders)
+          .innerJoin(orderItems, eq(orders.id, orderItems.orderId))
+          .where(and(
+            eq(orders.customerEmail, input.email),
+            eq(orders.status, "paid"),
+            eq(orderItems.productSlug, input.slug)
+          ))
+          .limit(1);
+        if (matchingOrders.length > 0) verifiedPurchase = 1;
+      }
+    }
+
+    const status = STATUS_PENDING;
     await createReview({ 
       productId: product.id, 
       reviewerName: input.name, 
@@ -31,7 +52,7 @@ export const reviewsRouter = router({
       title: input.title, 
       body: input.body, 
       status, 
-      verifiedPurchase: 0, 
+      verifiedPurchase, 
       helpfulCount: 0 
     });
     return { success: true, status };

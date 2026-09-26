@@ -35,15 +35,20 @@ function LegalAccordionPage({ eyebrow, title, sections }: { eyebrow: string, tit
             {sections.map((sec, idx) => {
               const isOpen = openIdx === idx;
               return (
-                <div key={idx} className={`faq-creative-item ${isOpen ? 'is-open' : ''}`} onClick={() => setOpenIdx(isOpen ? null : idx)}>
-                  <div className="faq-creative-header">
+                <div key={idx} className={`faq-creative-item ${isOpen ? 'is-open' : ''}`}>
+                  <button 
+                    className="faq-creative-header" 
+                    aria-expanded={isOpen} 
+                    onClick={() => setOpenIdx(isOpen ? null : idx)}
+                    style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', padding: 0 }}
+                  >
                     <span className="faq-num">{(idx + 1).toString().padStart(2, '0')}</span>
                     <h3 className="faq-q">{sec.title}</h3>
                     <div className="faq-toggle-icon">
                       <div className="faq-toggle-line-h"></div>
                       <div className="faq-toggle-line-v"></div>
                     </div>
-                  </div>
+                  </button>
                   <div className="faq-creative-body">
                     <div className="faq-body-inner">
                       {sec.content}
@@ -143,16 +148,20 @@ export function FAQ() {
                 <div 
                   key={idx} 
                   className={`faq-creative-item ${isOpen ? 'is-open' : ''}`}
-                  onClick={() => setOpenIdx(isOpen ? null : idx)}
                 >
-                  <div className="faq-creative-header">
+                  <button 
+                    className="faq-creative-header"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenIdx(isOpen ? null : idx)}
+                    style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', padding: 0 }}
+                  >
                     <span className="faq-num">{(idx + 1).toString().padStart(2, '0')}</span>
                     <h3 className="faq-q">{faq.q}</h3>
                     <div className="faq-toggle-icon">
                       <div className="faq-toggle-line-h"></div>
                       <div className="faq-toggle-line-v"></div>
                     </div>
-                  </div>
+                  </button>
                   <div className="faq-creative-body">
                     <div className="faq-body-inner">
                       <p>{faq.a}</p>

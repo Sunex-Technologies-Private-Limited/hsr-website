@@ -23,25 +23,41 @@ export const contactRouter = router({
         const { Resend } = await import("resend");
         const resend = new Resend(process.env.RESEND_API_KEY || "dummy");
         
+        // Basic HTML escaping
+        const escapeHtml = (unsafe: string) => {
+          return unsafe
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+        };
+
+        const safeName = escapeHtml(input.name);
+        const safeEmail = escapeHtml(input.email);
+        const safeOrder = input.orderNumber ? escapeHtml(input.orderNumber) : "N/A";
+        const safeSubject = escapeHtml(input.subject);
+        const safeMessage = escapeHtml(input.message).replace(/\n/g, '<br/>');
+
         if (process.env.RESEND_API_KEY) {
           await resend.emails.send({
             from: "HSR Website Contact Form <support@hsrdigitalhub.com>",
             to: process.env.SUPPORT_EMAIL || "hsrdigitalhub@gmail.com",
             replyTo: input.email,
-            subject: `Contact Form: ${input.subject}`,
+            subject: `Contact Form: ${safeSubject}`,
             html: `
               <h2>New Contact Form Submission</h2>
-              <p><strong>Name:</strong> ${input.name}</p>
-              <p><strong>Email:</strong> ${input.email}</p>
-              <p><strong>Order Number:</strong> ${input.orderNumber || "N/A"}</p>
-              <p><strong>Subject:</strong> ${input.subject}</p>
+              <p><strong>Name:</strong> ${safeName}</p>
+              <p><strong>Email:</strong> ${safeEmail}</p>
+              <p><strong>Order Number:</strong> ${safeOrder}</p>
+              <p><strong>Subject:</strong> ${safeSubject}</p>
               <br/>
               <h3>Message:</h3>
-              <p>${input.message.replace(/\n/g, '<br/>')}</p>
+              <p>${safeMessage}</p>
             `
           });
         } else {
-          console.log(`[Dev] Contact form submission from ${input.email}: ${input.message}`);
+          console.log(`[Dev] Contact form submission from ${safeEmail}: ${safeMessage}`);
         }
         return { success: true };
       } catch (err) {

@@ -4,6 +4,7 @@ import { categories } from "@/lib/store";
 import { ProductCard, SectionHeading, TrustStrip, useCart } from "@/components/Storefront";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { SEO } from "@/components/SEO";
 
 export default function Home() {
 
@@ -11,6 +12,7 @@ export default function Home() {
   const { data: allProducts = [] } = trpc.catalog.list.useQuery();
   const subscribe = trpc.newsletter.subscribe.useMutation({ onSuccess: () => toast.success("You’re on the list", { description: "Watch your inbox for something useful." }), onError: () => toast.error("Please try again", { description: "We couldn’t save your email right now." }) });
   const featured = allProducts.slice(0, 4);
+  const hasStarterEdit = allProducts.some((p) => p.price <= 900);
   
   const whatWeOffer = [
     { title: "Education & Learning", desc: "E-books, study resources, guides, worksheets and learning materials.", icon: BookOpen },
@@ -21,6 +23,10 @@ export default function Home() {
 
   return (
     <main>
+      <SEO 
+        title="HSR Digital Hub — Smart digital products for a smarter life."
+        description="Practical, affordable and thoughtfully designed digital products that help you learn, work, plan and achieve more."
+      />
       <section className="hero-section">
         <div className="hero-orb hero-orb-one" /><div className="hero-orb hero-orb-two" />
         <div className="container hero-grid">
@@ -201,56 +207,22 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section" style={{ background: 'var(--stone)' }}>
-        <div className="container">
-          <SectionHeading eyebrow="CUSTOMER BENEFITS" title="What’s in it for you?" />
-          <div className="benefits-grid">
-            <div className="benefit-card">
-              <div className="benefit-icon" style={{ background: 'var(--sky)', color: 'var(--navy)' }}><Clock size={24} strokeWidth={1.5} /></div>
-              <h3>Save Time</h3>
-              <p>Skip the setup phase. Our resources are ready-to-use instantly, giving you back hours of your day.</p>
-            </div>
-            <div className="benefit-card">
-              <div className="benefit-icon" style={{ background: 'var(--cream)', color: 'var(--navy)' }}><Rocket size={24} strokeWidth={1.5} /></div>
-              <h3>Work Smarter</h3>
-              <p>Practical tools and proven templates that streamline your workflow and eliminate unnecessary friction.</p>
-            </div>
-            <div className="benefit-card">
-              <div className="benefit-icon" style={{ background: 'var(--navy)', color: 'var(--white)' }}><BookOpen size={24} strokeWidth={1.5} /></div>
-              <h3>Learn Better</h3>
-              <p>Simple, clear, and actionable learning resources designed to help you master new skills quickly.</p>
-            </div>
-            <div className="benefit-card">
-              <div className="benefit-icon" style={{ background: 'var(--navy)', color: 'var(--white)' }}><CalendarCheck size={24} strokeWidth={1.5} /></div>
-              <h3>Plan Better</h3>
-              <p>Organize your personal and professional life with systems that actually make sense for your brain.</p>
-            </div>
-            <div className="benefit-card">
-              <div className="benefit-icon" style={{ background: 'var(--sky)', color: 'var(--navy)' }}><TrendingUp size={24} strokeWidth={1.5} /></div>
-              <h3>Grow Faster</h3>
-              <p>Accelerate your career and business with resources built on 30+ years of real-world experience.</p>
-            </div>
-            <div className="benefit-card">
-              <div className="benefit-icon" style={{ background: 'var(--cream)', color: 'var(--navy)' }}><Wallet size={24} strokeWidth={1.5} /></div>
-              <h3>Spend Less</h3>
-              <p>Premium digital solutions that deliver massive value without the expensive subscription fees.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="campaign-section">
         <div className="container campaign-grid">
           <div className="campaign-copy">
-            <span className="eyebrow eyebrow-light">Start for Just ₹9</span>
-            <h2>Useful digital resources shouldn't have to be expensive.</h2>
-            <Link href="/shop?filter=starter" className="button button-light">Explore ₹9 Digital Products <ArrowRight size={17} style={{ marginLeft: '8px' }} /></Link>
+            <span className="eyebrow eyebrow-light">{hasStarterEdit ? "Start for Just ₹9" : "Start Smart"}</span>
+            <h2>{hasStarterEdit ? "Useful digital resources shouldn't have to be expensive." : "Practical tools designed for real value."}</h2>
+            <Link href={hasStarterEdit ? "/shop?filter=starter" : "/shop"} className="button button-light">
+              {hasStarterEdit ? "Explore ₹9 Digital Products" : "Explore All Products"} <ArrowRight size={17} style={{ marginLeft: '8px' }} />
+            </Link>
           </div>
-          <div className="campaign-art">
-            <div className="campaign-sticker">FROM<br /><strong>₹9</strong></div>
-            <div className="campaign-sheet"><span className="sheet-kicker">THE START SMART EDIT</span><strong>small steps<br /><i>matter</i></strong><span className="sheet-lines"><i /><i /><i /></span><span className="sheet-footer">HSR / 2025</span></div>
-            <div className="campaign-circle">01</div>
-          </div>
+          {hasStarterEdit && (
+            <div className="campaign-art">
+              <div className="campaign-sticker">FROM<br /><strong>₹9</strong></div>
+              <div className="campaign-sheet"><span className="sheet-kicker">THE START SMART EDIT</span><strong>small steps<br /><i>matter</i></strong><span className="sheet-lines"><i /><i /><i /></span><span className="sheet-footer">HSR / {new Date().getFullYear()}</span></div>
+              <div className="campaign-circle">01</div>
+            </div>
+          )}
         </div>
       </section>
 

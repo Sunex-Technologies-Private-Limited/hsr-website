@@ -35,7 +35,7 @@ export const ordersRouter = router({
     for (const product of products) {
       if (!product.active) throw new TRPCError({ code: "BAD_REQUEST", message: `Product ${product.name} is inactive` });
       if (product.badge === "Coming Soon") throw new TRPCError({ code: "BAD_REQUEST", message: `Product ${product.name} is not available yet` });
-      if (!product.digitalAssetUrl && !product.imagePath) throw new TRPCError({ code: "BAD_REQUEST", message: `Product ${product.name} missing digital asset` });
+      if (!product.digitalAssetUrl && !product.downloadPath) throw new TRPCError({ code: "BAD_REQUEST", message: `Product ${product.name} missing digital asset` });
     }
 
     const normalizedItems = input.items.map((item, index) => ({ item, product: products[index] }));
@@ -69,7 +69,7 @@ export const ordersRouter = router({
       productSlug: product.slug, 
       productName: product.name, 
       unitPrice: product.price, 
-      downloadPath: product.digitalAssetUrl || product.imagePath 
+      downloadPath: product.digitalAssetUrl || product.downloadPath 
     })));
     
     return { 
@@ -122,6 +122,7 @@ export const ordersRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Amount mismatch detected" });
       }
     } catch (err) {
+      if (err instanceof TRPCError) throw err;
       throw new TRPCError({ code: "BAD_REQUEST", message: "Could not verify payment amount with Razorpay" });
     }
     

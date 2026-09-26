@@ -21,7 +21,10 @@ webhooksRouter.post("/razorpay", async (req, res) => {
     .update(req.body) // req.body is now a raw Buffer from express.raw
     .digest("hex");
 
-  if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature))) {
+  const expectedBuffer = Buffer.from(expectedSignature);
+  const inputBuffer = Buffer.from(signature);
+
+  if (expectedBuffer.length !== inputBuffer.length || !crypto.timingSafeEqual(expectedBuffer, inputBuffer)) {
     return res.status(400).json({ error: "Invalid signature" });
   }
 

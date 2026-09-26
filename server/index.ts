@@ -20,7 +20,7 @@ import fs from "fs";
 import path from "path";
 import multer from "multer";
 import { getDb } from "./db";
-import { orderItems, orders, downloadTokens } from "../drizzle/schema";
+import { orderItems, orders, downloadTokens, products } from "../drizzle/schema";
 import { eq, inArray } from "drizzle-orm";
 import { sdk } from "./_core/sdk";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
@@ -47,6 +47,156 @@ async function findAvailablePort(startPort: number = DEFAULT_PORT): Promise<numb
 }
 
 export const app = express();
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const s3 = new S3Client({
+  region: env.AWS_REGION || "us-east-1",
+  credentials: {
+    accessKeyId: env.AWS_ACCESS_KEY_ID || "",
+    secretAccessKey: env.AWS_SECRET_ACCESS_KEY || "",
+  }
+});
+
+// File Upload Route
+const upload = multer({ 
+  storage: env.AWS_S3_BUCKET ? multer.memoryStorage() : multer.diskStorage({ destination: uploadDir }),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ["application/pdf", "application/zip", "application/x-zip-compressed", "image/png", "image/jpeg", "image/webp"];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type"));
+    }
+  }
+});
+app.post("/api/admin/upload", upload.single("file"), async (req, res) => {
+  try {
+    let user;
+    try {
+      user = await sdk.authenticateRequest(req);
+    } catch (err) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    if (!user || user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    
+    let filename = req.file.filename;
+    
+    if (env.AWS_S3_BUCKET) {
+      filename = `${crypto.randomBytes(16).toString('hex')}-${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+      await s3.send(new PutObjectCommand({
+        Bucket: env.AWS_S3_BUCKET,
+        Key: filename,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      }));
+    }
+    
+    res.json({ success: true, path: filename });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+// Secure Download Route
+app.get("/api/downloads/:token", async (req, res) => {
+  try {
+    const token = req.params.token;
+    const db = await getDb();
+    if (!db) return res.status(500).json({ error: "Database error" });
+    
+    const tokens = await db.select().from(downloadTokens).where(eq(downloadTokens.token, token)).limit(1);
+    const downloadToken = tokens[0];
+    
+    if (!downloadToken) {
+      return res.status(404).json({ error: "Invalid or missing download token" });
+    }
+    
+    if (downloadToken.expiresAt < new Date()) {
+      return res.status(403).json({ error: "Download link has expired" });
+    }
+    
+    if (downloadToken.remainingUses <= 0) {
+      return res.status(403).json({ error: "Download limit reached" });
+    }
+    
+    const items = await db.select({ item: orderItems, order: orders }).from(orderItems).innerJoin(orders, eq(orderItems.orderId, orders.id)).where(eq(orderItems.id, downloadToken.orderItemId)).limit(1);
+    const result = items[0];
+    
+    if (!result || !result.item) return res.status(404).json({ error: "Product not found" });
+    if (result.order.status !== 'paid' && result.order.status !== 'fulfilled') return res.status(403).json({ error: "Order is not paid" });
+    
+    const item = result.item;
+    
+    // Decrement remaining uses
+    await db.update(downloadTokens)
+      .set({ remainingUses: downloadToken.remainingUses - 1 })
+      .where(eq(downloadTokens.token, token));
+      
+    if (env.AWS_S3_BUCKET) {
+      // Generate signed URL
+      const command = new GetObjectCommand({
+        Bucket: env.AWS_S3_BUCKET,
+        Key: item.productSlug
+      });
+      const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+      return res.redirect(signedUrl);
+    } else if (item.downloadPath) {
+      // Fallback to local files
+      const downloadPath = item.downloadPath.replace(/^\//, ''); // Remove leading slash
+      return res.download(path.join(uploadDir, downloadPath), `${item.productSlug}-download`);
+    } else {
+      return res.status(404).json({ error: "File not found on server" });
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Download failed" });
+  }
+});
+
+// SEO Routes
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.send("User-agent: *\nAllow: /\n\nSitemap: https://hsrdigitalhub.com/sitemap.xml\n");
+});
+
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const db = await getDb();
+    if (!db) return res.status(500).send("Database error");
+    
+    const allProducts = await db.select().from(products).where(eq(products.active, 1));
+    
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+    
+    // Add static routes
+    const staticRoutes = ["/", "/shop", "/about", "/contact", "/faq", "/privacy-policy"];
+    for (const route of staticRoutes) {
+      xml += `  <url>\n    <loc>https://hsrdigitalhub.com${route}</loc>\n    <changefreq>daily</changefreq>\n    <priority>${route === '/' ? '1.0' : '0.8'}</priority>\n  </url>\n`;
+    }
+    
+    // Add product routes
+    for (const p of allProducts) {
+      xml += `  <url>\n    <loc>https://hsrdigitalhub.com/product/${p.slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>\n`;
+    }
+    
+    xml += `</urlset>`;
+    
+    res.type("application/xml");
+    res.send(xml);
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("Error generating sitemap");
+  }
+});
+
+
+
 async function startServer() {
   const server = createServer(app);
   
@@ -131,117 +281,6 @@ async function startServer() {
   const uploadDir = path.join(process.cwd(), "uploads");
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-  const s3 = new S3Client({
-    region: env.AWS_REGION || "us-east-1",
-    credentials: {
-      accessKeyId: env.AWS_ACCESS_KEY_ID || "",
-      secretAccessKey: env.AWS_SECRET_ACCESS_KEY || "",
-    }
-  });
-
-  // File Upload Route
-  const upload = multer({ 
-    storage: env.AWS_S3_BUCKET ? multer.memoryStorage() : multer.diskStorage({ destination: uploadDir }),
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-    fileFilter: (req, file, cb) => {
-      const allowedMimes = ["application/pdf", "application/zip", "application/x-zip-compressed", "image/png", "image/jpeg", "image/webp"];
-      if (allowedMimes.includes(file.mimetype)) {
-        cb(null, true);
-      } else {
-        cb(new Error("Invalid file type"));
-      }
-    }
-  });
-  app.post("/api/admin/upload", upload.single("file"), async (req, res) => {
-    try {
-      let user;
-      try {
-        user = await sdk.authenticateRequest(req);
-      } catch (err) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      
-      if (!user || user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
-      if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-      
-      let filename = req.file.filename;
-      
-      if (env.AWS_S3_BUCKET) {
-        filename = `${crypto.randomBytes(16).toString('hex')}-${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-        await s3.send(new PutObjectCommand({
-          Bucket: env.AWS_S3_BUCKET,
-          Key: filename,
-          Body: req.file.buffer,
-          ContentType: req.file.mimetype,
-        }));
-      }
-      
-      res.json({ success: true, path: filename });
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: "Upload failed" });
-    }
-  });
-
-  // Secure Download Route
-  app.get("/api/downloads/:token", async (req, res) => {
-    try {
-      const token = req.params.token;
-      const db = await getDb();
-      if (!db) return res.status(500).json({ error: "Database error" });
-      
-      const tokens = await db.select().from(downloadTokens).where(eq(downloadTokens.token, token)).limit(1);
-      const downloadToken = tokens[0];
-      
-      if (!downloadToken) {
-        return res.status(404).json({ error: "Invalid or missing download token" });
-      }
-      
-      if (downloadToken.expiresAt < new Date()) {
-        return res.status(403).json({ error: "Download link has expired" });
-      }
-      
-      if (downloadToken.remainingUses <= 0) {
-        return res.status(403).json({ error: "Download limit reached" });
-      }
-      
-      const items = await db.select({ item: orderItems, order: orders }).from(orderItems).innerJoin(orders, eq(orderItems.orderId, orders.id)).where(eq(orderItems.id, downloadToken.orderItemId)).limit(1);
-      const result = items[0];
-      
-      if (!result || !result.item) return res.status(404).json({ error: "Product not found" });
-      if (result.order.status !== 'paid') return res.status(403).json({ error: "Order is not paid" });
-      
-      const item = result.item;
-      
-      // Decrement remaining uses
-      await db.update(downloadTokens)
-        .set({ remainingUses: downloadToken.remainingUses - 1 })
-        .where(eq(downloadTokens.token, token));
-        
-      const downloadPath = item.downloadPath;
-      if (!downloadPath) {
-        return res.status(404).json({ error: "File not found" });
-      }
-      
-      if (env.AWS_S3_BUCKET) {
-        const command = new GetObjectCommand({
-          Bucket: env.AWS_S3_BUCKET,
-          Key: downloadPath,
-          ResponseContentDisposition: `attachment; filename="${item.productSlug}-download"`,
-        });
-        const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
-        return res.redirect(url);
-      } else if (fs.existsSync(path.join(uploadDir, downloadPath))) {
-        return res.download(path.join(uploadDir, downloadPath), `${item.productSlug}-download`);
-      } else {
-        return res.status(404).json({ error: "File not found on server" });
-      }
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: "Download failed" });
-    }
-  });
-  
   // 5. Frontend Serving
   // development mode uses Vite, production mode uses static files
   if (env.NODE_ENV === "development") {

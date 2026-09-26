@@ -84,6 +84,12 @@ export const adminRouter = router({
     const db = await getDb();
     if (!db) throw new Error("No database connection");
     await db.update(orders).set({ status: input.status }).where(eq(orders.id, input.orderId));
+    
+    if (input.status === "paid") {
+      const { fulfillOrder } = await import("../db");
+      await fulfillOrder(input.orderId);
+    }
+    
     console.log(`[AUDIT] Admin ${ctx.user.email} changed order ${input.orderId} status to ${input.status}`);
     return { success: true };
   }),

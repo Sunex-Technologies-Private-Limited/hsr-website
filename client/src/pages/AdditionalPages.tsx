@@ -9,13 +9,24 @@ import type { Product } from "@/lib/store";
 export function NewArrivals() {
   const { data: products = [] } = trpc.catalog.list.useQuery();
   const arrivals = products.filter((product) => product.badge === "New" || product.badge === "Popular");
-  return <CollectionPage eyebrow="NEW ARRIVALS" title={<>Fresh tools for<br /><em>what’s next.</em></>} intro="Newly added digital products for the projects, plans and possibilities currently taking up space in your head." products={arrivals.length ? arrivals : products.slice(0, 4)} />;
+  return <CollectionPage eyebrow="NEW ARRIVALS" title={<>Fresh tools for<br /><em>what’s next.</em></>} intro="Newly added digital products for the projects, plans and possibilities currently taking up space in your head." products={arrivals} />;
 }
 
 export function Deals() {
   const { data: products = [] } = trpc.catalog.list.useQuery();
   const deals = products.filter((product) => product.compareAt || product.badge === "₹9 starter");
-  return <main className="collection-page"><section className="collection-hero deals-hero"><div className="container collection-hero-inner"><div><span className="eyebrow eyebrow-light">LIMITED TIME EDIT / HSR DIGITAL HUB</span><h1>Small price.<br /><em>Useful payoff.</em></h1><p>Start with a practical digital solution from ₹9, then keep building from there.</p><Link href="/shop" className="button button-light">Shop the edit <ArrowUpRight size={17} /></Link></div><div className="deal-clock"><span>START SMART</span><strong>₹9</strong><small>digital solutions<br />for the next step</small></div></div></section><section className="section"><div className="container"><SectionHeading eyebrow="THE START SMART EDIT" title="Good things can start small." description="Accessible products for the moments when a little structure, clarity or momentum would help." /><div className="product-grid product-grid-three">{deals.map((product) => <ProductCard product={product as any} key={product.slug} />)}</div></div></section></main>;
+  return <main className="collection-page"><section className="collection-hero deals-hero"><div className="container collection-hero-inner"><div><span className="eyebrow eyebrow-light">LIMITED TIME EDIT / HSR DIGITAL HUB</span><h1>Small price.<br /><em>Useful payoff.</em></h1><p>Start with a practical digital solution from ₹9, then keep building from there.</p><Link href="/shop" className="button button-light">Shop the edit <ArrowUpRight size={17} /></Link></div><div className="deal-clock"><span>START SMART</span><strong>₹9</strong><small>digital solutions<br />for the next step</small></div></div></section><section className="section"><div className="container"><SectionHeading eyebrow="THE START SMART EDIT" title="Good things can start small." description="Accessible products for the moments when a little structure, clarity or momentum would help." />
+  {deals.length > 0 ? (
+    <div className="product-grid product-grid-three">{deals.map((product) => <ProductCard product={product as any} key={product.slug} />)}</div>
+  ) : (
+    <div className="no-results" style={{ textAlign: "center", padding: "60px 20px", background: "var(--stone)", borderRadius: "12px" }}>
+      <span>Nothing here yet.</span>
+      <h2>Check back later.</h2>
+      <p>We're working on adding new deals to this collection.</p>
+      <Link href="/shop" className="button button-primary" style={{ display: "inline-flex", marginTop: "20px" }}>Browse all products <ArrowUpRight size={16} /></Link>
+    </div>
+  )}
+  </div></section></main>;
 }
 
 export function About() {
@@ -351,30 +362,66 @@ export function Account() {
         </div>
         
         <div style={{ background: 'var(--white)', padding: '40px', borderRadius: '12px', border: '1px solid rgba(23,41,73,.1)' }}>
-          <h2 style={{ fontSize: '20px', marginBottom: '20px' }}>Your Digital Products</h2>
-          <p style={{ color: 'var(--ink-light)', marginBottom: '30px' }}>Access your purchased downloads here.</p>
+          <h2 style={{ fontSize: '20px', marginBottom: '20px' }}>Your Order History</h2>
           
           {ordersLoading ? (
-            <p>Loading your products...</p>
+            <p>Loading your orders...</p>
           ) : orders.length === 0 ? (
             <div style={{ padding: '40px', textAlign: 'center', background: 'var(--stone)', borderRadius: '8px' }}>
               <p style={{ color: 'var(--ink-light)' }}>No purchases yet. <Link href="/shop" className="text-link">Explore the shop</Link></p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gap: '20px' }}>
-              {orders.flatMap(order => order.items).map(item => (
-                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', border: '1px solid rgba(23,41,73,.1)', borderRadius: '8px' }}>
-                  <div>
-                    <h3 style={{ fontSize: '18px', fontWeight: 600 }}>{item.productName}</h3>
-                    <p style={{ color: 'var(--ink-light)', fontSize: '14px', marginTop: '5px' }}>Purchased via order</p>
+            <div style={{ display: 'grid', gap: '30px' }}>
+              {orders.map(order => (
+                <div key={order.id} style={{ border: '1px solid rgba(23,41,73,.1)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ background: 'var(--stone)', padding: '20px', borderBottom: '1px solid rgba(23,41,73,.1)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '15px' }}>
+                    <div>
+                      <span style={{ fontSize: '12px', color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Order Number</span>
+                      <div style={{ fontWeight: 600 }}>#{order.id.toString().padStart(5, '0')}</div>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '12px', color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</span>
+                      <div>{new Date(order.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '12px', color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</span>
+                      <div>{formatPrice(order.totalAmount)}</div>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '12px', color: 'var(--ink-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</span>
+                      <div>
+                        <span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600, background: order.status === 'paid' || order.status === 'fulfilled' ? '#e6f4ea' : '#fef7e0', color: order.status === 'paid' || order.status === 'fulfilled' ? '#137333' : '#b06000' }}>
+                          {order.status.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                    {(order.customerGstin || import.meta.env.VITE_GSTIN) && (
+                      <div style={{ width: '100%', marginTop: '10px', fontSize: '12px', color: 'var(--ink-light)' }}>
+                        <strong>Invoice Details:</strong> {order.customerGstin ? `Customer GSTIN: ${order.customerGstin}` : ''} {import.meta.env.VITE_GSTIN ? `| Seller GSTIN: ${import.meta.env.VITE_GSTIN}` : ''}
+                      </div>
+                    )}
                   </div>
-                  {item.token ? (
-                     <a href={`/api/downloads/${item.token}`} target="_blank" rel="noreferrer" className="button button-primary">
-                       Download
-                     </a>
-                  ) : (
-                     <span style={{ color: 'var(--ink-light)', fontSize: '14px' }}>Processing...</span>
-                  )}
+                  <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    {order.items.map((item: any) => (
+                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <h3 style={{ fontSize: '16px', fontWeight: 600 }}>{item.productName}</h3>
+                          <p style={{ color: 'var(--ink-light)', fontSize: '13px' }}>Qty: {item.quantity}</p>
+                        </div>
+                        {(order.status === 'paid' || order.status === 'fulfilled') ? (
+                          item.token ? (
+                            <a href={`/api/downloads/${item.token}`} target="_blank" rel="noreferrer" className="button button-primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
+                              Download
+                            </a>
+                          ) : (
+                            <span style={{ color: 'var(--ink-light)', fontSize: '13px' }}>Generating link...</span>
+                          )
+                        ) : (
+                          <span style={{ color: 'var(--ink-light)', fontSize: '13px', fontStyle: 'italic' }}>Payment processing</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -410,25 +457,39 @@ export function Contact() {
 }
 
 export function CollectionPage({ eyebrow, title, intro, products: collection }: { eyebrow: string; title: React.ReactNode; intro: string; products: any[] }) {
-  return <main className="collection-page"><section className="collection-hero"><div className="container collection-hero-inner"><div><span className="eyebrow eyebrow-light">{eyebrow}</span><h1>{title}</h1></div><p>{intro}</p></div></section><section className="section"><div className="container"><div className="collection-meta"><span>{collection.length.toString().padStart(2, "0")} products</span><Link href="/shop" className="text-link">View all products <ArrowUpRight size={16} /></Link></div><div className="product-grid product-grid-three">{collection.map((product) => <ProductCard product={product as any} key={product.slug} />)}</div></div></section></main>;
+  return <main className="collection-page"><section className="collection-hero"><div className="container collection-hero-inner"><div><span className="eyebrow eyebrow-light">{eyebrow}</span><h1>{title}</h1></div><p>{intro}</p></div></section><section className="section"><div className="container">
+  {collection.length > 0 ? (
+    <>
+      <div className="collection-meta"><span>{collection.length.toString().padStart(2, "0")} products</span><Link href="/shop" className="text-link">View all products <ArrowUpRight size={16} /></Link></div>
+      <div className="product-grid product-grid-three">{collection.map((product) => <ProductCard product={product as any} key={product.slug} />)}</div>
+    </>
+  ) : (
+    <div className="no-results" style={{ textAlign: "center", padding: "60px 20px", background: "var(--stone)", borderRadius: "12px" }}>
+      <span>Nothing here yet.</span>
+      <h2>Check back later.</h2>
+      <p>We're working on adding new products to this collection.</p>
+      <Link href="/shop" className="button button-primary" style={{ display: "inline-flex", marginTop: "20px" }}>Browse all products <ArrowUpRight size={16} /></Link>
+    </div>
+  )}
+  </div></section></main>;
 }
 
 export function BestSellers() {
   const { data: products = [] } = trpc.catalog.list.useQuery();
   const bestsellers = products.filter((product) => product.badge === "Bestseller" || product.badge === "Popular");
-  return <CollectionPage eyebrow="OUR BEST SELLERS" title={<>Tried.<br /><em>Tested. True.</em></>} intro="The most loved digital products in our collection, designed to deliver immediate value." products={bestsellers.length ? bestsellers : products.slice(0, 4)} />;
+  return <CollectionPage eyebrow="OUR BEST SELLERS" title={<>Tried.<br /><em>Tested. True.</em></>} intro="The most loved digital products in our collection, designed to deliver immediate value." products={bestsellers} />;
 }
 
 export function Bundles() {
   const { data: products = [] } = trpc.catalog.list.useQuery();
   const bundles = products.filter((product) => product.type === "Bundle");
-  return <CollectionPage eyebrow="DIGITAL BUNDLES" title={<>Save more.<br /><em>Achieve more.</em></>} intro="Carefully curated collections of our best digital products. Everything you need in one place." products={bundles.length ? bundles : products.slice(0, 2)} />;
+  return <CollectionPage eyebrow="DIGITAL BUNDLES" title={<>Save more.<br /><em>Achieve more.</em></>} intro="Carefully curated collections of our best digital products. Everything you need in one place." products={bundles} />;
 }
 
 export function FreeResources() {
   const { data: products = [] } = trpc.catalog.list.useQuery();
   const freeProducts = products.filter((product) => product.price === 0 || product.badge === "Free");
-  return <CollectionPage eyebrow="FREE RESOURCES" title={<>Start here.<br /><em>Start free.</em></>} intro="Valuable templates, checklists, and guides to help you get started without any cost." products={freeProducts.length ? freeProducts : products.slice(0, 2)} />;
+  return <CollectionPage eyebrow="FREE RESOURCES" title={<>Start here.<br /><em>Start free.</em></>} intro="Valuable templates, checklists, and guides to help you get started without any cost." products={freeProducts} />;
 }
 
 export function Categories() {

@@ -48,19 +48,30 @@ describe("HSR Digital Hub Core P0 Tests", () => {
   });
 
   it("B12.4: download unpaid/missing token → 403/404", async () => {
-    // For this test, we construct an inline handler matching the real one from index.ts
-    // but abstracted to inject database lookups for a missing token
-    const testApp = express();
-    testApp.get("/api/downloads/:token", async (req, res) => {
-      const token = req.params.token;
-      // Mock db lookup for missing token
-      if (token === "missing_token_123") {
-        return res.status(404).json({ error: "Invalid or missing download token" });
-      }
-      return res.status(200).send("OK");
+    // Import db module and spy on getDb
+    const dbModule = await import("../server/db");
+    const spy = import("vitest").then(({ vi }) => {
+      return vi.spyOn(dbModule, "getDb").mockResolvedValue({
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: () => []
+            })
+          })
+        })
+      } as any);
     });
 
-    const res = await request(testApp).get("/api/downloads/missing_token_123");
+    // Import the real app instance to test the actual route handler
+    const { app } = await import("../server/index");
+    
+    // Using a missing/fake token against the real DB handler
+    const res = await request(app).get("/api/downloads/missing_token_123");
+    
+    // Restore mock
+    (await spy).mockRestore();
+
+    // Should be 404 because token isn't in db
     expect(res.status).toBe(404);
     expect(res.body.error).toBe("Invalid or missing download token");
   });
