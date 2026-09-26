@@ -1,9 +1,10 @@
 import { Link, useLocation } from "wouter";
 import { createContext, useContext, useMemo, useState, useEffect } from "react";
-import { ArrowUpRight, Calendar, Check, ChevronDown, Download, Heart, LogIn, Menu, Minus, Package, Plus, Search, ShoppingBag, Sparkles, Wrench, X, Facebook, Instagram } from "lucide-react";
+import { ArrowUpRight, Calendar, Check, ChevronDown, Download, Heart, LogIn, LogOut, User, Menu, Minus, Package, Plus, Search, ShoppingBag, Sparkles, Wrench, X, Facebook, Instagram } from "lucide-react";
 import { toast } from "sonner";
 import { Product, formatPrice, getCoverClass, getProductCoverStyle } from "@/lib/store";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/useAuth";
 
 export function CoverIcon({ type }: { type: string }) {
   if (type === "Planner") return <Calendar size={20} strokeWidth={1.5} />;
@@ -88,7 +89,18 @@ export function useFavorites() {
 }
 
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
-  const [favorites, setFavorites] = useState<Product[]>([]);
+  const [favorites, setFavorites] = useState<Product[]>(() => {
+    try {
+      const stored = localStorage.getItem("hsr_favorites");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("hsr_favorites", JSON.stringify(favorites));
+  }, [favorites]);
 
   const toggleFavorite = (product: Product) => {
     setFavorites((prev) => {
@@ -127,6 +139,7 @@ export function SiteHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { count, setOpen } = useCart();
+  const { user, logout } = useAuth();
   const isShop = location === "/shop" || location.startsWith("/product");
   const go = (href: string) => {
     setMenuOpen(false);
@@ -157,7 +170,14 @@ export function SiteHeader() {
             <Link href="/shop" className="button button-primary" style={{ padding: '8px 16px', fontSize: '12px' }}>EXPLORE PRODUCTS</Link>
             <button className="icon-button search-button" aria-label="Search" onClick={() => setSearchOpen((value) => !value)}><Search size={18} /></button>
             <Link href="/favorites" className="icon-button account-button" aria-label="Favorites"><Heart size={17} /></Link>
-            <Link href="/login" className="icon-button account-button" aria-label="Login"><LogIn size={17} /></Link>
+            {user ? (
+              <>
+                <Link href="/account" className="icon-button account-button" aria-label="Account"><User size={17} /></Link>
+                <button className="icon-button account-button" aria-label="Sign Out" onClick={() => logout()}><LogOut size={17} /></button>
+              </>
+            ) : (
+              <Link href="/login" className="icon-button account-button" aria-label="Login"><LogIn size={17} /></Link>
+            )}
             <button className="cart-button" aria-label={`Open bag with ${count} items`} onClick={() => setOpen(true)}><ShoppingBag size={17} /><span className="cart-label">Bag</span>{count > 0 && <b>{count}</b>}</button>
             <button className="menu-button icon-button" aria-label="Toggle navigation" onClick={() => setMenuOpen((value) => !value)}>{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
           </div>
@@ -185,7 +205,7 @@ export function SiteFooter() {
         <div className="footer-brand"><BrandMark inverse /><p>Practical digital solutions for learning, productivity, career, business and everyday life.</p><div className="footer-socials"><a href="https://www.facebook.com/profile.php?id=61590198495302" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><Facebook size={14} /></a><a href="https://www.instagram.com/hsrdigitalhub/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><Instagram size={14} /></a></div></div>
         <div className="footer-column"><h3>SHOP</h3><Link href="/shop">All Products</Link><Link href="/best-sellers">Best Sellers</Link><Link href="/new-arrivals">New Arrivals</Link></div>
         <div className="footer-column"><h3>CATEGORIES</h3><Link href="/shop?category=Education%20%26%20Learning">Education</Link><Link href="/shop?category=Life%20Style">Life Style</Link><Link href="/shop?category=AI%20Productivity%20Prompt%20Pack">AI Productivity</Link><Link href="/shop?category=HomeBuild%20A-Z">HomeBuild A-Z</Link></div>
-        <div className="footer-column"><h3>COMPANY</h3><Link href="/about">About Us</Link><Link href="/blog">Blog</Link><Link href="/contact">Contact</Link><Link href="/faq">FAQ</Link><Link href="/support">Support</Link></div>
+        <div className="footer-column"><h3>COMPANY</h3><Link href="/about">About Us</Link><Link href="/contact">Contact</Link><Link href="/faq">FAQ</Link><Link href="/support">Support</Link></div>
         <div className="footer-column"><h3>LEGAL</h3><Link href="/privacy-policy">Privacy Policy</Link><Link href="/terms-and-conditions">Terms & Conditions</Link><Link href="/refund-policy">Refund Policy</Link><Link href="/license">License Policy</Link></div>
       </div>
       <div className="container footer-bottom"><span>© 2025 HSR Digital Hub</span><span>Smart Products. Real Value. Better You.</span><span className="footer-legal"></span></div>
@@ -227,8 +247,6 @@ export function ProductCard({ product, compact = false }: { product: Product; co
   );
 }
 
-
-import { useAuth } from "@/hooks/useAuth";
 
 export function CartDrawer() {
   const { items, open, setOpen, remove } = useCart();

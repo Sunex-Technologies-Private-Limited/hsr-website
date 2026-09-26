@@ -4,6 +4,7 @@ import { authRouter } from "./routes/auth";
 import { catalogRouter } from "./routes/catalog";
 import { reviewsRouter } from "./routes/reviews";
 import { newsletterRouter } from "./routes/newsletter";
+import { contactRouter } from "./routes/contact";
 import { adminRouter } from "./routes/admin";
 import { ordersRouter } from "./routes/orders";
 
@@ -13,6 +14,7 @@ export const appRouter = router({
   catalog: catalogRouter,
   reviews: reviewsRouter,
   newsletter: newsletterRouter,
+  contact: contactRouter,
   orders: ordersRouter,
   admin: adminRouter,
 });

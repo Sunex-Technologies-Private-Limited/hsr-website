@@ -22,6 +22,9 @@ export const ordersRouter = router({
   create: publicProcedure.input(z.object({ 
     name: z.string().trim().min(2).max(160), 
     email, 
+    phone: z.string().trim().optional(),
+    country: z.string().trim().optional(),
+    gstin: z.string().trim().optional(),
     items: z.array(z.object({ slug, quantity: z.number().int().min(1).max(10) })).min(1).max(20) 
   })).mutation(async ({ input, ctx }) => {
     const catalog = await Promise.all(input.items.map((item) => getProductBySlug(item.slug)));
@@ -51,6 +54,9 @@ export const ordersRouter = router({
       accessToken,
       customerEmail: input.email, 
       customerName: input.name, 
+      customerPhone: input.phone,
+      customerCountry: input.country,
+      customerGstin: input.gstin,
       totalAmount, 
       currency: DEFAULT_CURRENCY, 
       status: STATUS_PENDING,
@@ -94,7 +100,10 @@ export const ordersRouter = router({
       .update(`${input.razorpayOrderId}|${input.razorpayPaymentId}`)
       .digest("hex");
       
-    if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(input.razorpaySignature))) {
+    const expectedBuffer = Buffer.from(expectedSignature);
+    const inputBuffer = Buffer.from(input.razorpaySignature);
+    
+    if (expectedBuffer.length !== inputBuffer.length || !crypto.timingSafeEqual(expectedBuffer, inputBuffer)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payment signature" });
     }
     
@@ -155,10 +164,14 @@ export const ordersRouter = router({
     // Fetch orders for the logged-in user's email
     const myOrdersList = await db.select().from(orders).where(eq(orders.customerEmail, ctx.user.email as string)).orderBy(desc(orders.createdAt));
     
-    // Fetch items for those orders
+    // Fetch items and tokens for those orders
     const result = await Promise.all(myOrdersList.map(async (order) => {
       const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-      return { ...order, items };
+      const itemsWithTokens = await Promise.all(items.map(async (item) => {
+        const tokens = await db.select().from(downloadTokens).where(eq(downloadTokens.orderItemId, item.id));
+        return { ...item, token: tokens[0]?.token || null };
+      }));
+      return { ...order, items: itemsWithTokens };
     }));
     
     return result;

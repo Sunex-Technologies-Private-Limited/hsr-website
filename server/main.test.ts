@@ -26,7 +26,7 @@ describe("HSR Digital Hub Core P0 Tests", () => {
     await expect(caller.admin.createProduct({
       slug: "test", name: "test", category: "test", type: "test", description: "test",
       price: 100, accent: "blue", imagePath: "test", coverLabel: "test", format: "test", included: "test", forWho: "test"
-    })).rejects.toThrow(/UNAUTHORIZED/);
+    })).rejects.toThrow(/You do not have required permission/);
   });
 
   it("B12.2: verifyPayment rejects bad signature", async () => {

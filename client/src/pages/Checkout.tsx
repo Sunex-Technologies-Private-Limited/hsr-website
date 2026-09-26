@@ -91,6 +91,9 @@ export default function Checkout() {
     createOrder.mutate({
       name: String(data.get("name")),
       email: String(data.get("email")),
+      phone: String(data.get("mobile")),
+      country: String(data.get("country") || "India"),
+      gstin: String(data.get("gstin") || ""),
       items: items.map(item => ({ slug: item.slug, quantity: 1 }))
     });
   };
@@ -123,6 +126,23 @@ export default function Checkout() {
               <div>
                 <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", fontWeight: 500 }}>Mobile Number</label>
                 <input name="mobile" type="tel" required style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid rgba(0,0,0,0.1)" }} />
+              </div>
+              <div style={{ display: "flex", gap: "1rem" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", fontWeight: 500 }}>Country</label>
+                  <select name="country" required defaultValue="India" style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid rgba(0,0,0,0.1)", background: "white" }}>
+                    <option value="India">India</option>
+                    <option value="United States">United States</option>
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="Australia">Australia</option>
+                    <option value="Canada">Canada</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", fontWeight: 500 }}>GSTIN (Optional)</label>
+                  <input name="gstin" placeholder="For B2B invoice" style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid rgba(0,0,0,0.1)" }} />
+                </div>
               </div>
 
               <div style={{ marginTop: "1rem" }}>

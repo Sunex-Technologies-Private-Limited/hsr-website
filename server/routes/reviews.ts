@@ -22,6 +22,7 @@ export const reviewsRouter = router({
   })).mutation(async ({ input }) => {
     const product = await getProductBySlug(input.slug);
     if (!product) throw new Error("Product not found");
+    const status = input.rating >= 4 ? "approved" : STATUS_PENDING;
     await createReview({ 
       productId: product.id, 
       reviewerName: input.name, 
@@ -29,11 +30,11 @@ export const reviewsRouter = router({
       rating: input.rating, 
       title: input.title, 
       body: input.body, 
-      status: STATUS_PENDING, 
+      status, 
       verifiedPurchase: 0, 
       helpfulCount: 0 
     });
-    return { success: true, status: STATUS_PENDING };
+    return { success: true, status };
   }),
   helpful: publicProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => { 
     await markReviewHelpful(input.id); 

@@ -12,6 +12,8 @@ export const users = pgTable("users", {
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   updatedAt: timestamp('updatedAt').defaultNow().notNull(),
   lastSignedIn: timestamp('lastSignedIn').defaultNow().notNull(),
+  resetToken: text("resetToken"),
+  resetTokenExpiry: timestamp("resetTokenExpiry"),
 });
 
 export const products = pgTable("products", {
@@ -61,6 +63,9 @@ export const orders = pgTable("orders", {
   orderNumber: text("orderNumber").notNull().unique(),
   customerEmail: text("customerEmail").notNull(),
   customerName: text("customerName").notNull(),
+  customerPhone: text("customerPhone"),
+  customerCountry: text("customerCountry"),
+  customerGstin: text("customerGstin"),
   totalAmount: integer("totalAmount").notNull(),
   currency: text("currency").default("INR").notNull(),
   status: text("status").$type<"pending" | "paid" | "fulfilled" | "cancelled">().default("pending").notNull(),

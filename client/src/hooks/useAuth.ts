@@ -4,16 +4,16 @@ import { useLocation } from "wouter";
 
 export function useAuth() {
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
   
   // Use TRPC to fetch the current user
   const { data: user, isLoading: loading } = trpc.auth.me.useQuery();
   
-  // Setup the logout mutation
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
-      // Clear the current location and reload to reset state
+      utils.auth.me.invalidate();
+      utils.orders.myOrders.invalidate();
       setLocation("/");
-      window.location.reload();
     },
   });
 

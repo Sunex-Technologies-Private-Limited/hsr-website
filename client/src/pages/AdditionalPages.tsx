@@ -200,12 +200,13 @@ import { useAuth } from "@/hooks/useAuth";
 export function Login() {
   const [isRegister, setIsRegister] = useState(false);
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
   const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: () => { toast.success("Welcome back"); setLocation("/account"); window.location.reload(); },
+    onSuccess: () => { toast.success("Welcome back"); utils.auth.me.invalidate(); utils.orders.myOrders.invalidate(); setLocation("/account"); },
     onError: (err) => { toast.error(err.message); }
   });
   const registerMutation = trpc.auth.register.useMutation({
-    onSuccess: () => { toast.success("Account created"); setLocation("/account"); window.location.reload(); },
+    onSuccess: () => { toast.success("Account created"); utils.auth.me.invalidate(); utils.orders.myOrders.invalidate(); setLocation("/account"); },
     onError: (err) => { toast.error(err.message); }
   });
 
@@ -215,7 +216,13 @@ export function Login() {
     const email = String(data.get("email"));
     const password = String(data.get("password"));
     if (isRegister) {
-      registerMutation.mutate({ email, password });
+      const name = String(data.get("name"));
+      const confirmPassword = String(data.get("confirmPassword"));
+      if (password !== confirmPassword) {
+        toast.error("Passwords do not match");
+        return;
+      }
+      registerMutation.mutate({ name, email, password });
     } else {
       loginMutation.mutate({ email, password });
     }
@@ -231,15 +238,91 @@ export function Login() {
         <h1>{isRegister ? "Create account." : "Welcome back."}</h1>
         <p>{isRegister ? "Sign up to access your digital downloads." : "Sign in to access your downloads and purchase history."}</p>
         <form className="login-form" onSubmit={handleSubmit}>
+          {isRegister && <label>Name<input name="name" type="text" required placeholder="Your Name" /></label>}
           <label>Email address<input name="email" type="email" required placeholder="you@example.com" /></label>
           <label>Password<input name="password" type="password" minLength={8} required placeholder="••••••••" /></label>
+          {isRegister && <label>Confirm Password<input name="confirmPassword" type="password" minLength={8} required placeholder="••••••••" /></label>}
           <button className="button button-primary" type="submit" disabled={isPending}>
             {isPending ? "Please wait..." : (isRegister ? "Create account" : "Sign in")} <ArrowUpRight size={17} />
           </button>
         </form>
-        <button onClick={() => setIsRegister(!isRegister)} className="text-link" style={{ marginTop: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}>
-          {isRegister ? "Already have an account? Sign in" : "Need an account? Sign up"}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '1rem', alignItems: 'center' }}>
+          <button onClick={() => setIsRegister(!isRegister)} className="text-link" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            {isRegister ? "Already have an account? Sign in" : "Need an account? Sign up"}
+          </button>
+          {!isRegister && (
+            <Link href="/forgot-password" style={{ fontSize: '14px', opacity: 0.8 }}>Forgot your password?</Link>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export function ForgotPassword() {
+  const [email, setEmail] = useState("");
+  const forgotMutation = trpc.auth.forgotPassword.useMutation({
+    onSuccess: () => { toast.success("Reset link sent", { description: "Check your email for a password reset link." }); },
+    onError: (err) => { toast.error(err.message); }
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    forgotMutation.mutate({ email });
+  };
+
+  return (
+    <main className="utility-page">
+      <div className="container utility-inner login-inner">
+        <span className="utility-icon"><LogIn size={24} /></span>
+        <span className="eyebrow">RESET PASSWORD</span>
+        <h1>Forgot your password?</h1>
+        <p>Enter your email and we'll send you a link to reset your password.</p>
+        <form className="login-form" onSubmit={handleSubmit}>
+          <label>Email address<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" /></label>
+          <button className="button button-primary" type="submit" disabled={forgotMutation.isPending}>
+            {forgotMutation.isPending ? "Sending..." : "Send Reset Link"} <ArrowUpRight size={17} />
+          </button>
+        </form>
+        <Link href="/login" className="text-link" style={{ marginTop: '1rem', display: 'inline-block' }}>Back to Sign in</Link>
+      </div>
+    </main>
+  );
+}
+
+export function ResetPassword() {
+  const [location, setLocation] = useLocation();
+  const searchParams = new URLSearchParams(window.location.search);
+  const token = searchParams.get("token");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  
+  const resetMutation = trpc.auth.resetPassword.useMutation({
+    onSuccess: () => { toast.success("Password reset successfully"); setLocation("/login"); },
+    onError: (err) => { toast.error(err.message); }
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!token) return toast.error("Missing reset token");
+    if (password !== confirmPassword) return toast.error("Passwords do not match");
+    resetMutation.mutate({ token, password });
+  };
+
+  return (
+    <main className="utility-page">
+      <div className="container utility-inner login-inner">
+        <span className="utility-icon"><LogIn size={24} /></span>
+        <span className="eyebrow">SET NEW PASSWORD</span>
+        <h1>Reset Password.</h1>
+        <p>Choose a new password for your account.</p>
+        <form className="login-form" onSubmit={handleSubmit}>
+          <label>New Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required placeholder="••••••••" /></label>
+          <label>Confirm Password<input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} minLength={8} required placeholder="••••••••" /></label>
+          <button className="button button-primary" type="submit" disabled={resetMutation.isPending}>
+            {resetMutation.isPending ? "Updating..." : "Reset Password"} <ArrowUpRight size={17} />
+          </button>
+        </form>
       </div>
     </main>
   );
@@ -285,8 +368,8 @@ export function Account() {
                     <h3 style={{ fontSize: '18px', fontWeight: 600 }}>{item.productName}</h3>
                     <p style={{ color: 'var(--ink-light)', fontSize: '14px', marginTop: '5px' }}>Purchased via order</p>
                   </div>
-                  {item.downloadPath ? (
-                     <a href={`/api/downloads/${item.productSlug}`} target="_blank" rel="noreferrer" className="button button-primary">
+                  {item.token ? (
+                     <a href={`/api/downloads/${item.token}`} target="_blank" rel="noreferrer" className="button button-primary">
                        Download
                      </a>
                   ) : (
@@ -303,7 +386,27 @@ export function Account() {
 }
 
 export function Contact() {
-  return <main className="contact-page"><section className="container contact-hero"><span className="eyebrow">WE’RE HERE TO HELP</span><h1>Let’s make<br /><em>things clearer.</em></h1><p>Questions about a product, digital access or finding the right next step? Send us a note.</p></section><section className="container contact-grid"><div className="contact-info"><div><Mail size={18} /><span><b>Email</b>hsrdigitalhub@gmail.com</span></div><div><Phone size={18} /><span><b>Support</b>Product and access help</span></div><div><MapPin size={18} /><span><b>Online</b>Digital-first, wherever you are</span></div><div><AtSign size={18} /><span><b>Socials</b><span><a href="https://www.instagram.com/hsrdigitalhub/" target="_blank" rel="noopener noreferrer">Instagram</a> &middot; <a href="https://www.facebook.com/profile.php?id=61590198495302" target="_blank" rel="noopener noreferrer">Facebook</a></span></span></div></div><form className="contact-form" onSubmit={(event) => event.preventDefault()}><label>Name<input required placeholder="Your name" /></label><label>Email<input required type="email" placeholder="you@example.com" /></label><label>Order Number (optional)<input placeholder="e.g. #12345" /></label><label>Subject<input required placeholder="What is this regarding?" /></label><label>How can we help?<textarea required rows={5} placeholder="Tell us what you’re working on…" /></label><button className="button button-primary" type="submit">Send message <ArrowUpRight size={17} /></button></form></section></main>;
+  const contactMutation = trpc.contact.submit.useMutation({
+    onSuccess: () => {
+      toast.success("Message sent", { description: "We'll get back to you soon." });
+      document.querySelector<HTMLFormElement>("#contact-form")?.reset();
+    },
+    onError: (err) => toast.error(err.message)
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    contactMutation.mutate({
+      name: String(data.get("name")),
+      email: String(data.get("email")),
+      orderNumber: String(data.get("orderNumber")),
+      subject: String(data.get("subject")),
+      message: String(data.get("message")),
+      honeypot: String(data.get("honeypot") || "")
+    });
+  };
+  return <main className="contact-page"><section className="container contact-hero"><span className="eyebrow">WE’RE HERE TO HELP</span><h1>Let’s make<br /><em>things clearer.</em></h1><p>Questions about a product, digital access or finding the right next step? Send us a note.</p></section><section className="container contact-grid"><div className="contact-info"><div><Mail size={18} /><span><b>Email</b>hsrdigitalhub@gmail.com</span></div><div><Phone size={18} /><span><b>Support</b>Product and access help</span></div><div><MapPin size={18} /><span><b>Online</b>Digital-first, wherever you are</span></div><div><AtSign size={18} /><span><b>Socials</b><span><a href="https://www.instagram.com/hsrdigitalhub/" target="_blank" rel="noopener noreferrer">Instagram</a> &middot; <a href="https://www.facebook.com/profile.php?id=61590198495302" target="_blank" rel="noopener noreferrer">Facebook</a></span></span></div></div><form id="contact-form" className="contact-form" onSubmit={handleSubmit}><input type="text" name="honeypot" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" /><label>Name<input name="name" required placeholder="Your name" /></label><label>Email<input name="email" required type="email" placeholder="you@example.com" /></label><label>Order Number (optional)<input name="orderNumber" placeholder="e.g. #12345" /></label><label>Subject<input name="subject" required placeholder="What is this regarding?" /></label><label>How can we help?<textarea name="message" required rows={5} placeholder="Tell us what you’re working on…" /></label><button className="button button-primary" type="submit" disabled={contactMutation.isPending}>{contactMutation.isPending ? "Sending..." : "Send message"} <ArrowUpRight size={17} /></button></form></section></main>;
 }
 
 export function CollectionPage({ eyebrow, title, intro, products: collection }: { eyebrow: string; title: React.ReactNode; intro: string; products: any[] }) {

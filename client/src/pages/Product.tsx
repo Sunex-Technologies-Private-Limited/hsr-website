@@ -12,6 +12,38 @@ export default function Product({ params }: { params: { slug: string } }) {
   const { add, buyNow } = useCart();
   const { toggleFavorite, isFavorite } = useFavorites();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const utils = trpc.useUtils();
+  
+  const submitReview = trpc.reviews.submit.useMutation({
+    onSuccess: (data) => {
+      import("sonner").then(m => {
+        if (data.status === "approved") {
+          m.toast.success("Review published!");
+        } else {
+          m.toast.success("Review submitted", { description: "Your review is pending approval." });
+        }
+      });
+      setShowReviewForm(false);
+      utils.reviews.list.invalidate({ slug: params.slug });
+    },
+    onError: (err) => {
+      import("sonner").then(m => m.toast.error(err.message));
+    }
+  });
+
+  const handleReviewSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    submitReview.mutate({
+      slug: params.slug,
+      name: String(data.get("name")),
+      email: String(data.get("email")),
+      rating: Number(data.get("rating")),
+      title: String(data.get("title")),
+      body: String(data.get("body"))
+    });
+  };
 
   if (isLoading) return <div className="container not-found"><h2>Loading...</h2></div>;
   if (!product) return <div className="container not-found"><h2>Product not found.</h2><Link href="/shop" className="text-link">Back to shop <ArrowUpRight size={15} /></Link></div>;
@@ -39,7 +71,35 @@ export default function Product({ params }: { params: { slug: string } }) {
       <span className="eyebrow">CUSTOMER REVIEWS</span>
       <h2 style={{ fontSize: '28px', fontFamily: '"Fraunces", Georgia, serif' }}>What others are saying.</h2>
     </div>
+    {!showReviewForm && (
+      <button className="button button-light" onClick={() => setShowReviewForm(true)}>Write a Review</button>
+    )}
   </div>
+  {showReviewForm && (
+    <div style={{ background: 'var(--stone)', padding: '30px', borderRadius: '12px', marginBottom: '30px' }}>
+      <h3 style={{ fontSize: '20px', marginBottom: '20px' }}>Write a Review</h3>
+      <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>Name<input name="name" required style={{ padding: '10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)' }} /></label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>Email (optional)<input name="email" type="email" style={{ padding: '10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)' }} /></label>
+        </div>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          <label>Rating</label>
+          {[1, 2, 3, 4, 5].map(num => (
+            <label key={num} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+              <input type="radio" name="rating" value={num} required defaultChecked={num === 5} /> {num}
+            </label>
+          ))}
+        </div>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>Title<input name="title" required minLength={3} style={{ padding: '10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)' }} /></label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>Review<textarea name="body" required minLength={10} rows={4} style={{ padding: '10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', fontFamily: 'inherit' }} /></label>
+        <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+          <button className="button button-primary" type="submit" disabled={submitReview.isPending}>{submitReview.isPending ? "Submitting..." : "Submit Review"}</button>
+          <button className="button button-light" type="button" onClick={() => setShowReviewForm(false)}>Cancel</button>
+        </div>
+      </form>
+    </div>
+  )}
   {reviews.length > 0 ? (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px' }}>
       {reviews.map((review: any) => (
